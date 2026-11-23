@@ -45,7 +45,41 @@ function App() {
   const [password,setPassword] = useState('')
   const [authBusy,setAuthBusy] = useState(false)
   const [authMessage,setAuthMessage] = useState('')
+  const [paymentReference,setPaymentReference] = useState('')
+  const [paymentBusy,setPaymentBusy] = useState(false)
+  const [paymentMessage,setPaymentMessage] = useState('')
   const t = copy[lang]
+  async function submitPaymentRequest(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!supabase || !selectedPlan) return
+    setPaymentBusy(true)
+    setPaymentMessage('')
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setPaymentBusy(false)
+      setSelectedPlan(null)
+      setAuthMode('signin')
+      setDashboard(true)
+      setAuthMessage('Please sign in first. Then choose your plan again to submit its payment reference.')
+      return
+    }
+    const planCode = selectedPlan.name.toLowerCase().replaceAll(' ', '_')
+    const amountPaise = Number(selectedPlan.price.replace(/[^0-9]/g, '')) * 100
+    const { error } = await supabase.from('subscription_payment_requests').insert({
+      user_id: user.id,
+      plan_code: planCode,
+      plan_name: selectedPlan.name,
+      amount_paise: amountPaise,
+      upi_transaction_ref: paymentReference.trim()
+    })
+    setPaymentBusy(false)
+    if (error) {
+      setPaymentMessage(error.code === '23505' ? 'This UPI transaction reference has already been submitted.' : error.message)
+    } else {
+      setPaymentMessage('Payment reference submitted. Your request is pending manual verification; your plan is not active until it is approved.')
+      setPaymentReference('')
+    }
+  }
   return <div className="app-shell">
     <header className="nav wrap">
       <a className="brand" href="#"><span className="brand-mark"><Coffee size={21}/></span><span>Brew<span>OS</span></span></a>
@@ -65,7 +99,7 @@ function App() {
       <section className="closing wrap"><div><div className="eyebrow">YOUR CAFÉ. YOUR CRAFT.</div><h2>Make room for<br/><em>what matters.</em></h2></div><a className="btn" href="#pricing">Find your BrewOS plan <ArrowRight size={17}/></a></section>
     </main>
     <footer className="footer"><div className="wrap footer-inner"><a className="brand" href="#"><span className="brand-mark"><Coffee size={20}/></span><span>Brew<span>OS</span></span></a><p>{t.footer} © 2026 BrewOS.</p><span>Built for better café days.</span></div></footer>
-    {selectedPlan&&<div className="modal-backdrop" onClick={()=>setSelectedPlan(null)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setSelectedPlan(null)}><X/></button><span className="modal-icon"><QrCode/></span><h2>Complete your plan purchase</h2><p>Selected plan: <b>{selectedPlan.name}</b></p><div style={{fontSize:30,fontWeight:800,color:'#059669',margin:'8px 0 18px'}}>{selectedPlan.price}</div><div style={{background:'#f5f5f4',borderRadius:14,padding:18,marginBottom:14}}><div style={{width:170,height:170,margin:'0 auto 12px',border:'2px dashed #a8a29e',borderRadius:12,display:'grid',placeItems:'center',background:'#fff',color:'#78716c'}}><div style={{textAlign:'center'}}><QrCode size={52}/><div style={{fontSize:11,marginTop:8}}>Your payment QR<br/>will appear here</div></div></div><p style={{fontSize:12,margin:'0 0 8px'}}>Pay using any supported UPI app</p><div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,flexWrap:'wrap'}}><b style={{fontSize:15}}>misbahkhan19@fam</b><button type="button" className="outline-btn" onClick={()=>navigator.clipboard?.writeText('misbahkhan19@fam')}>Copy UPI ID</button></div></div><p style={{fontSize:12,lineHeight:1.6}}>The QR image will be added when you share it. After payment, BrewOS will need a secure payment record and manual verification before activating your plan. This screen does not collect or confirm payments yet.</p><button className="btn" style={{width:'100%',justifyContent:'center'}} onClick={()=>setSelectedPlan(null)}>Close <X size={15}/></button></div></div>}
+    {selectedPlan&&<div className="modal-backdrop" onClick={()=>setSelectedPlan(null)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setSelectedPlan(null)}><X/></button><span className="modal-icon"><QrCode/></span><h2>Complete your plan purchase</h2><p>Selected plan: <b>{selectedPlan.name}</b></p><div style={{fontSize:30,fontWeight:800,color:'#059669',margin:'8px 0 18px'}}>{selectedPlan.price}</div><div style={{background:'#f5f5f4',borderRadius:14,padding:18,marginBottom:14}}><div style={{width:170,height:170,margin:'0 auto 12px',border:'2px dashed #a8a29e',borderRadius:12,display:'grid',placeItems:'center',background:'#fff',color:'#78716c'}}><div style={{textAlign:'center'}}><QrCode size={52}/><div style={{fontSize:11,marginTop:8}}>Your payment QR<br/>will appear here</div></div></div><p style={{fontSize:12,margin:'0 0 8px'}}>Pay using any supported UPI app</p><div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,flexWrap:'wrap'}}><b style={{fontSize:15}}>misbahkhan19@fam</b><button type="button" className="outline-btn" onClick={()=>navigator.clipboard?.writeText('misbahkhan19@fam')}>Copy UPI ID</button></div></div><p style={{fontSize:12,lineHeight:1.6}}>After paying through UPI, enter the UPI transaction reference below. Do not enter your UPI PIN or share an OTP. Your plan stays inactive until an administrator verifies the payment.</p><form onSubmit={submitPaymentRequest} style={{display:'grid',gap:10,textAlign:'left'}}><label style={{fontSize:12}}>UPI transaction reference<input required minLength={6} maxLength={80} value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} placeholder="Enter UPI transaction ID" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><button className="btn" disabled={paymentBusy||!supabaseConfigured} style={{width:'100%',justifyContent:'center'}}>{paymentBusy?'Submitting…':'Submit for verification'} <ArrowRight size={15}/></button></form>{paymentMessage&&<p role="status" style={{fontSize:12,lineHeight:1.6,overflowWrap:'anywhere'}}>{paymentMessage}</p>}<button className="outline-btn" style={{width:'100%',justifyContent:'center',marginTop:10}} onClick={()=>setSelectedPlan(null)}>Close</button></div></div>}
     {dashboard&&<div className="modal-backdrop" onClick={()=>setDashboard(false)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDashboard(false)}><X/></button><span className="modal-icon"><Zap/></span><h2>{authMode==='signin'?'Welcome back':'Create your BrewOS account'}</h2><p>Use your email to access the café owner workspace.</p><div style={{display:'flex',gap:8,justifyContent:'center',marginBottom:16}}><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signin');setAuthMessage('')}}>Sign in</button><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signup');setAuthMessage('')}}>Create account</button></div><form onSubmit={async (e: FormEvent<HTMLFormElement>)=>{e.preventDefault();if(!supabase){setAuthMessage('Supabase is not configured. Check Netlify environment variables and redeploy.');return;}setAuthBusy(true);setAuthMessage('');const result=authMode==='signup'?await supabase.auth.signUp({email:email.trim(),password}):await supabase.auth.signInWithPassword({email:email.trim(),password});setAuthBusy(false);setAuthMessage(result.error?result.error.message:(authMode==='signup'?'Account created. Check your email if confirmation is enabled.':'Signed in successfully. Café onboarding is the next step.'));}} style={{display:'grid',gap:10,textAlign:'left'}}><label style={{fontSize:12}}>Email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><label style={{fontSize:12}}>Password<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><button className="btn" disabled={authBusy||!supabaseConfigured}>{authBusy?'Please wait…':authMode==='signin'?'Sign in':'Create account'} <ArrowRight size={15}/></button></form>{!supabaseConfigured&&<p style={{color:'#b45309'}}>Supabase configuration is missing in this deployment. Please redeploy after adding the variables.</p>}{authMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{authMessage}</p>}</div></div>}
   </div>
 }
