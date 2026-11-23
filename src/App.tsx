@@ -157,7 +157,7 @@ function App() {
     setBranchName('Main Branch')
     setBranchAddress('')
     await loadOwnerCafes()
-    if (!data?.length) setOwnerMessage('Restaurant was created, but the response could not be refreshed. Please refresh the list.')
+    if (!data) setOwnerMessage('The restaurant creation request returned no café ID. Please refresh the list and check before trying again.')
   }
   async function loadAdminRequests() {
     if (!supabase) return
