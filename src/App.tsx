@@ -60,7 +60,7 @@ function App() {
   const subscriptionExpiry: Date | null = subscription?.expires_at ? new Date(subscription.expires_at) : null
   const subscriptionExpired: boolean = Boolean(subscription && (subscription.status !== 'active' || (subscriptionExpiry !== null && subscriptionExpiry.getTime() <= Date.now())))
   const subscriptionRemaining: number | null = subscriptionExpiry !== null ? Math.max(0, Math.ceil((subscriptionExpiry.getTime() - Date.now()) / 86400000)) : null
-  const subscriptionPlanLabel: string = subscription ? (({3_months:'3 Months',6_months:'6 Months',9_months:'9 Months',1_year:'1 Year',lifetime:'Lifetime'} as Record<string,string>)[subscription.plan_code] || subscription.plan_code) : ''
+  const subscriptionPlanLabel: string = subscription ? (({'3_months':'3 Months','6_months':'6 Months','9_months':'9 Months','1_year':'1 Year',lifetime:'Lifetime'} as Record<string,string>)[subscription.plan_code] || subscription.plan_code) : ''
   async function loadSubscription() {
     if (!supabase) return
     setSubscriptionBusy(true)
