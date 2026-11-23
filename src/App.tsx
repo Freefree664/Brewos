@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, BarChart3, Bell, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap } from 'lucide-react'
+import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap } from 'lucide-react'
 
 const copy = {
   en: {
