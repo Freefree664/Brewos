@@ -118,3 +118,15 @@ $$;
 
 revoke all on function public.review_subscription_payment(uuid, text, text) from public, anon;
 grant execute on function public.review_subscription_payment(uuid, text, text) to authenticated;
+
+-- Enforce the exact price for each plan at the database boundary.
+alter table public.subscription_payment_requests
+  drop constraint if exists subscription_payment_requests_plan_price_match;
+alter table public.subscription_payment_requests
+  add constraint subscription_payment_requests_plan_price_match check (
+    (plan_code = '3_months' and amount_paise = 69900)
+    or (plan_code = '6_months' and amount_paise = 99900)
+    or (plan_code = '9_months' and amount_paise = 149900)
+    or (plan_code = '1_year' and amount_paise = 199900)
+    or (plan_code = 'lifetime' and amount_paise = 499900)
+  );
