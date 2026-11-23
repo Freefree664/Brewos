@@ -56,6 +56,7 @@ function App() {
   const [profileOpen,setProfileOpen] = useState(false)
   const [profileName,setProfileName] = useState('')
   const [profileBusy,setProfileBusy] = useState(false)
+  const [profileMessage,setProfileMessage] = useState('')
   const [ownerOpen,setOwnerOpen] = useState(false)
   const [ownerBusy,setOwnerBusy] = useState(false)
   const [ownerLoading,setOwnerLoading] = useState(false)
