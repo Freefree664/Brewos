@@ -57,10 +57,10 @@ function App() {
   const [subscriptionMessage,setSubscriptionMessage] = useState('')
   const [subscription,setSubscription] = useState<{plan_code:string;starts_at:string;expires_at:string|null;status:string}|null>(null)
   const t = copy[lang]
-  const subscriptionExpiry = subscription?.expires_at ? new Date(subscription.expires_at) : null
-  const subscriptionExpired = Boolean(subscription && (subscription.status !== 'active' || (subscriptionExpiry && subscriptionExpiry.getTime() <= Date.now())))
-  const subscriptionRemaining = subscriptionExpiry ? Math.max(0, Math.ceil((subscriptionExpiry.getTime() - Date.now()) / 86400000)) : null
-  const subscriptionPlanLabel = subscription ? (({3_months:'3 Months',6_months:'6 Months',9_months:'9 Months',1_year:'1 Year',lifetime:'Lifetime'} as Record<string,string>)[subscription.plan_code] || subscription.plan_code) : ''
+  const subscriptionExpiry: Date | null = subscription?.expires_at ? new Date(subscription.expires_at) : null
+  const subscriptionExpired: boolean = Boolean(subscription && (subscription.status !== 'active' || (subscriptionExpiry !== null && subscriptionExpiry.getTime() <= Date.now())))
+  const subscriptionRemaining: number | null = subscriptionExpiry !== null ? Math.max(0, Math.ceil((subscriptionExpiry.getTime() - Date.now()) / 86400000)) : null
+  const subscriptionPlanLabel: string = subscription ? (({3_months:'3 Months',6_months:'6 Months',9_months:'9 Months',1_year:'1 Year',lifetime:'Lifetime'} as Record<string,string>)[subscription.plan_code] || subscription.plan_code) : ''
   async function loadSubscription() {
     if (!supabase) return
     setSubscriptionBusy(true)
@@ -84,8 +84,9 @@ function App() {
       setSubscriptionMessage(error.message)
       return
     }
-    setSubscription(data)
-    setSubscriptionMessage(data ? '' : 'No subscription has been activated for this account yet.')
+    const subscriptionRow = data as {plan_code:string;starts_at:string;expires_at:string|null;status:string} | null
+    setSubscription(subscriptionRow)
+    setSubscriptionMessage(subscriptionRow ? '' : 'No subscription has been activated for this account yet.')
   }
   async function loadAdminRequests() {
     if (!supabase) return
