@@ -63,7 +63,7 @@ function App() {
       setAuthMessage('Please sign in first. Then choose your plan again to submit its payment reference.')
       return
     }
-    const planCode = selectedPlan.name.toLowerCase().replaceAll(' ', '_')
+    const planCode = selectedPlan.name.toLowerCase().replace(/ /g, '_')
     const amountPaise = Number(selectedPlan.price.replace(/[^0-9]/g, '')) * 100
     const { error } = await supabase.from('subscription_payment_requests').insert({
       user_id: user.id,
