@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { supabase, supabaseConfigured } from './lib/supabase'
 import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap } from 'lucide-react'
 
 const copy = {
@@ -38,6 +39,11 @@ function App() {
   const [lang,setLang] = useState<'en'|'hi'>('en')
   const [menu,setMenu] = useState(false)
   const [dashboard,setDashboard] = useState(false)
+  const [authMode,setAuthMode] = useState<'signin'|'signup'>('signin')
+  const [email,setEmail] = useState('')
+  const [password,setPassword] = useState('')
+  const [authBusy,setAuthBusy] = useState(false)
+  const [authMessage,setAuthMessage] = useState('')
   const t = copy[lang]
   return <div className="app-shell">
     <header className="nav wrap">
@@ -58,7 +64,7 @@ function App() {
       <section className="closing wrap"><div><div className="eyebrow">YOUR CAFÉ. YOUR CRAFT.</div><h2>Make room for<br/><em>what matters.</em></h2></div><a className="btn" href="#pricing">Find your BrewOS plan <ArrowRight size={17}/></a></section>
     </main>
     <footer className="footer"><div className="wrap footer-inner"><a className="brand" href="#"><span className="brand-mark"><Coffee size={20}/></span><span>Brew<span>OS</span></span></a><p>{t.footer} © 2026 BrewOS.</p><span>Built for better café days.</span></div></footer>
-    {dashboard&&<div className="modal-backdrop" onClick={()=>setDashboard(false)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDashboard(false)}><X/></button><span className="modal-icon"><Zap/></span><h2>Welcome to BrewOS</h2><p>The owner workspace preview is coming in the next build milestone. Sign-in, café onboarding and live data will be connected after the secure backend is ready.</p><button className="btn" onClick={()=>setDashboard(false)}>Got it <Check size={16}/></button></div></div>}
+    {dashboard&&<div className="modal-backdrop" onClick={()=>setDashboard(false)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDashboard(false)}><X/></button><span className="modal-icon"><Zap/></span><h2>{authMode==='signin'?'Welcome back':'Create your BrewOS account'}</h2><p>Use your email to access the café owner workspace.</p><div style={{display:'flex',gap:8,justifyContent:'center',marginBottom:16}}><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signin');setAuthMessage('')}}>Sign in</button><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signup');setAuthMessage('')}}>Create account</button></div><form onSubmit={async (e: FormEvent<HTMLFormElement>)=>{e.preventDefault();if(!supabase){setAuthMessage('Supabase is not configured. Check Netlify environment variables and redeploy.');return;}setAuthBusy(true);setAuthMessage('');const result=authMode==='signup'?await supabase.auth.signUp({email:email.trim(),password}):await supabase.auth.signInWithPassword({email:email.trim(),password});setAuthBusy(false);setAuthMessage(result.error?result.error.message:(authMode==='signup'?'Account created. Check your email if confirmation is enabled.':'Signed in successfully. Café onboarding is the next step.'));}} style={{display:'grid',gap:10,textAlign:'left'}}><label style={{fontSize:12}}>Email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><label style={{fontSize:12}}>Password<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><button className="btn" disabled={authBusy||!supabaseConfigured}>{authBusy?'Please wait…':authMode==='signin'?'Sign in':'Create account'} <ArrowRight size={15}/></button></form>{!supabaseConfigured&&<p style={{color:'#b45309'}}>Supabase configuration is missing in this deployment. Please redeploy after adding the variables.</p>}{authMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{authMessage}</p>}</div></div>}
   </div>
 }
 
