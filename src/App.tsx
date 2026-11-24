@@ -134,13 +134,24 @@ function App() {
         setQrMenuError('The menu could not be loaded yet. Please ask the café team for assistance.')
         return
       }
+      // get_public_cafe_menu returns { categories: [{ name, items: [...] }] }, not a flat item array.
+      // Keep a fallback for older flat response shapes while normalizing the current nested schema.
       const menuRoot = menuData as unknown
-      const rawItems = Array.isArray(menuRoot) ? menuRoot
-        : menuRoot && typeof menuRoot === 'object'
-          ? ((menuRoot as {items?:unknown[];menu_items?:unknown[];menu?:unknown[]}).items
-            || (menuRoot as {menu_items?:unknown[]}).menu_items
-            || (menuRoot as {menu?:unknown[]}).menu || [])
-          : []
+      const root = menuRoot && typeof menuRoot === 'object' ? menuRoot as Record<string, unknown> : {}
+      const categoryRows = Array.isArray(root.categories) ? root.categories : []
+      const nestedItems = categoryRows.flatMap(categoryValue => {
+        if (!categoryValue || typeof categoryValue !== 'object') return []
+        const category = categoryValue as Record<string, unknown>
+        const items = Array.isArray(category.items) ? category.items : []
+        return items.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+          .map(item => ({ ...item, category_name: category.name ?? 'Menu' }))
+      })
+      const legacyItems = Array.isArray(menuRoot) ? menuRoot
+        : Array.isArray(root.items) ? root.items
+        : Array.isArray(root.menu_items) ? root.menu_items
+        : Array.isArray(root.menu) ? root.menu
+        : []
+      const rawItems = nestedItems.length ? nestedItems : legacyItems
       const normalized = rawItems.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
         .map((row, index) => {
           const rawPrice = row.price_paise ?? row.price ?? row.selling_price_paise ?? 0
