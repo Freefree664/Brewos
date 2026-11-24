@@ -42,9 +42,18 @@ create policy "Cafe managers manage private menu costs"
 
 -- Public URLs are used for menu photos; upload/change/delete is restricted
 -- to active owners and managers of the cafe whose UUID is the first path segment.
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('menu-item-images', 'menu-item-images', true, 5242880)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'menu-item-images',
+  'menu-item-images',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "Public read BrewOS menu images" on storage.objects;
 create policy "Public read BrewOS menu images"
