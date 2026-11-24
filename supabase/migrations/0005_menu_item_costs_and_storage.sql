@@ -19,25 +19,25 @@ alter table public.menu_item_costs enable row level security;
 revoke all on public.menu_item_costs from anon;
 grant select, insert, update, delete on public.menu_item_costs to authenticated;
 
-drop policy if exists "Cafe managers manage private menu costs" on public.menu_item_costs;
+drop policy if exists "Cafe owners manage private menu costs" on public.menu_item_costs;
 drop policy if exists "menu_item_costs_owner_delete" on public.menu_item_costs;
 drop policy if exists "menu_item_costs_owner_insert" on public.menu_item_costs;
 drop policy if exists "menu_item_costs_owner_select" on public.menu_item_costs;
 drop policy if exists "menu_item_costs_owner_update" on public.menu_item_costs;
-create policy "Cafe managers manage private menu costs"
+create policy "Cafe owners manage private menu costs"
   on public.menu_item_costs
   for all
   to authenticated
   using (
     public.has_cafe_role(
       cafe_id,
-      array['owner','manager']::public.cafe_role[]
+      array['owner']::public.cafe_role[]
     )
   )
   with check (
     public.has_cafe_role(
       cafe_id,
-      array['owner','manager']::public.cafe_role[]
+      array['owner']::public.cafe_role[]
     )
     and exists (
       select 1
@@ -48,7 +48,7 @@ create policy "Cafe managers manage private menu costs"
   );
 
 -- Public URLs are used for menu photos; upload/change/delete is restricted
--- to active owners and managers of the cafe whose UUID is the first path segment.
+-- to active owners of the cafe whose UUID is the first path segment.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'menu-item-images',
@@ -86,7 +86,7 @@ create policy "Cafe managers upload BrewOS menu images"
       where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
-        and membership.role in ('owner', 'manager')
+        and membership.role = 'owner'
     )
   );
 
@@ -103,7 +103,7 @@ create policy "Cafe managers update BrewOS menu images"
       where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
-        and membership.role in ('owner', 'manager')
+        and membership.role = 'owner'
     )
   )
   with check (
@@ -114,7 +114,7 @@ create policy "Cafe managers update BrewOS menu images"
       where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
-        and membership.role in ('owner', 'manager')
+        and membership.role = 'owner'
     )
   );
 
@@ -131,6 +131,6 @@ create policy "Cafe managers delete BrewOS menu images"
       where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
-        and membership.role in ('owner', 'manager')
+        and membership.role = 'owner'
     )
   );
