@@ -82,7 +82,7 @@ declare
   v_count integer := 0;
 begin
   if coalesce(length(p_token), 0) < 32 then raise exception 'Invalid table QR.'; end if;
-  if coalesce(p_pin, '') !~ '^[0-9]{6} raise exception 'Enter the 6-digit PIN from café staff.'; end if;
+  if coalesce(p_pin, '') !~ '^[0-9]{6}
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 30 then
     raise exception 'Your cart must contain 1 to 30 item lines.';
   end if;
@@ -112,94 +112,6 @@ begin
         consumed_at = case when attempts + 1 >= 5 then now() else consumed_at end
     where id = v_pin_row.id;
     return jsonb_build_object('error', 'Incorrect PIN. Please check with café staff.');
-  end if;
-
-  -- Consume the PIN before creating the order. The transaction is atomic.
-  update public.table_order_pins set consumed_at = now() where id = v_pin_row.id;
-
-  for v_item in select value from jsonb_array_elements(p_items)
-  loop
-    v_count := v_count + 1;
-    if coalesce(v_item->>'menu_item_id','') = '' then raise exception 'Invalid cart item.'; end if;
-    v_qty := (v_item->>'quantity')::integer;
-    if v_qty < 1 or v_qty > 20 then raise exception 'Item quantity must be between 1 and 20.'; end if;
-
-    select * into v_menu_item
-    from public.menu_items
-    where id = (v_item->>'menu_item_id')::uuid
-      and cafe_id = v_table.cafe_id
-      and is_available = true
-      and (branch_id is null or branch_id = v_table.branch_id);
-
-    if not found then raise exception 'An item is unavailable. Refresh the menu and try again.'; end if;
-    v_subtotal := v_subtotal + (v_menu_item.price_paise * v_qty);
-  end loop;
-
-  insert into public.orders(
-    cafe_id, branch_id, table_id, order_type, status,
-    notes, subtotal_paise, tax_paise, total_paise
-  ) values (
-    v_table.cafe_id, v_table.branch_id, v_table.id, 'dine_in', 'pending',
-    left(coalesce(p_notes, ''), 500), v_subtotal, 0, v_subtotal
-  ) returning id into v_order_id;
-
-  for v_item in select value from jsonb_array_elements(p_items)
-  loop
-    v_qty := (v_item->>'quantity')::integer;
-    select * into v_menu_item
-    from public.menu_items
-    where id = (v_item->>'menu_item_id')::uuid
-      and cafe_id = v_table.cafe_id
-      and is_available = true
-      and (branch_id is null or branch_id = v_table.branch_id);
-
-    insert into public.order_items(
-      order_id, cafe_id, menu_item_id, item_name_snapshot,
-      quantity, unit_price_paise, line_total_paise
-    ) values (
-      v_order_id, v_table.cafe_id, v_menu_item.id, v_menu_item.name,
-      v_qty, v_menu_item.price_paise, v_menu_item.price_paise * v_qty
-    );
-  end loop;
-
-  return jsonb_build_object('order_id', v_order_id, 'status', 'pending', 'total_paise', v_subtotal);
-end;
-$$;
-
-revoke all on function public.issue_table_order_pin(uuid) from public, anon;
-grant execute on function public.issue_table_order_pin(uuid) to authenticated;
-revoke all on function public.submit_guest_order(text, text, jsonb, text) from public;
-grant execute on function public.submit_guest_order(text, text, jsonb, text) to anon, authenticated;
- then raise exception 'Enter the 6-digit PIN from café staff.'; end if;
-  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 30 then
-    raise exception 'Your cart must contain 1 to 30 item lines.';
-  end if;
-
-  select * into v_table
-  from public.dining_tables
-  where qr_token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
-    and active = true;
-
-  if not found then raise exception 'This table QR is invalid or inactive.'; end if;
-
-  select * into v_pin_row
-  from public.table_order_pins
-  where table_id = v_table.id
-    and consumed_at is null
-    and expires_at > now()
-    and attempts < 5
-  order by created_at desc
-  limit 1
-  for update;
-
-  if not found then raise exception 'Ask café staff for a new order PIN.'; end if;
-
-  if v_pin_row.pin_hash <> encode(extensions.digest(p_pin, 'sha256'), 'hex') then
-    update public.table_order_pins
-    set attempts = attempts + 1,
-        consumed_at = case when attempts + 1 >= 5 then now() else consumed_at end
-    where id = v_pin_row.id;
-    raise exception 'Incorrect PIN. Please check with café staff.';
   end if;
 
   -- Consume the PIN before creating the order. The transaction is atomic.
