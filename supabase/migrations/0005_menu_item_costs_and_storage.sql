@@ -9,6 +9,9 @@ create table if not exists public.menu_item_costs (
   updated_at timestamptz not null default now()
 );
 
+alter table public.menu_item_costs
+  add column if not exists created_at timestamptz not null default now();
+
 create index if not exists menu_item_costs_cafe_idx
   on public.menu_item_costs(cafe_id);
 
@@ -17,6 +20,10 @@ revoke all on public.menu_item_costs from anon;
 grant select, insert, update, delete on public.menu_item_costs to authenticated;
 
 drop policy if exists "Cafe managers manage private menu costs" on public.menu_item_costs;
+drop policy if exists "menu_item_costs_owner_delete" on public.menu_item_costs;
+drop policy if exists "menu_item_costs_owner_insert" on public.menu_item_costs;
+drop policy if exists "menu_item_costs_owner_select" on public.menu_item_costs;
+drop policy if exists "menu_item_costs_owner_update" on public.menu_item_costs;
 create policy "Cafe managers manage private menu costs"
   on public.menu_item_costs
   for all
@@ -56,6 +63,10 @@ set public = excluded.public,
     allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "Public read BrewOS menu images" on storage.objects;
+drop policy if exists "menu_item_images_owner_delete" on storage.objects;
+drop policy if exists "menu_item_images_owner_update" on storage.objects;
+drop policy if exists "menu_item_images_owner_upload" on storage.objects;
+drop policy if exists "menu_item_images_public_read" on storage.objects;
 create policy "Public read BrewOS menu images"
   on storage.objects
   for select
@@ -72,7 +83,7 @@ create policy "Cafe managers upload BrewOS menu images"
     and exists (
       select 1
       from public.cafe_memberships membership
-      where membership.cafe_id::text = split_part(name, '/', 1)
+      where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
         and membership.role in ('owner', 'manager')
@@ -89,7 +100,7 @@ create policy "Cafe managers update BrewOS menu images"
     and exists (
       select 1
       from public.cafe_memberships membership
-      where membership.cafe_id::text = split_part(name, '/', 1)
+      where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
         and membership.role in ('owner', 'manager')
@@ -100,7 +111,7 @@ create policy "Cafe managers update BrewOS menu images"
     and exists (
       select 1
       from public.cafe_memberships membership
-      where membership.cafe_id::text = split_part(name, '/', 1)
+      where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
         and membership.role in ('owner', 'manager')
@@ -117,7 +128,7 @@ create policy "Cafe managers delete BrewOS menu images"
     and exists (
       select 1
       from public.cafe_memberships membership
-      where membership.cafe_id::text = split_part(name, '/', 1)
+      where membership.cafe_id::text = (storage.foldername(name))[1]
         and membership.user_id = (select auth.uid())
         and membership.active = true
         and membership.role in ('owner', 'manager')
