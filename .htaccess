@@ -1,0 +1,11 @@
+# Hostinger / Apache: serve the Vite app and fall back to index.html for client-side routes.
+Options -MultiViews
+RewriteEngine On
+
+# Serve existing files and directories directly.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Send all other requests to the React app.
+RewriteRule ^ index.html [L]
