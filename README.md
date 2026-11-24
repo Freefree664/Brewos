@@ -44,6 +44,7 @@ For a new Supabase project, review and apply migrations in numeric order:
 6. `0006_table_qr_foundation.sql`
 7. `0007_guest_ordering.sql`
 8. `0008_super_admin_cafe_moderation_and_realtime.sql`
+9. `0009_restrict_internal_security_definer_rpcs.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
 
