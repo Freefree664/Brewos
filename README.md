@@ -7,10 +7,13 @@ BrewOS is a café management web app built with React, Vite, TypeScript and Supa
 - Public BrewOS landing page with English/Hindi language toggle
 - Supabase authentication and owner dashboard
 - Restaurant and branch setup
-- Dining table creation and QR token generation
+- Restaurant and branch setup, plus dining table creation and QR token generation
 - Owner-managed menu items: name, description, category, selling price, preparation cost, photo and availability
 - Estimated item profit for owners (private cost data is not displayed to guests)
-- QR table check-in and guest menu display (requires the public Supabase RPCs described below)
+- Guest QR check-in, menu browsing, cart and staff-PIN-protected order submission
+- Owner order dashboard with status updates, Supabase Realtime subscription and a 15-second polling fallback
+- Browser notifications for new orders when the owner dashboard is open and notification permission is granted
+- UPI QR subscription checkout with transaction-reference submission and manual Super Admin verification
 
 ## Supabase configuration
 
@@ -59,7 +62,9 @@ The second function must return guest-safe menu fields only (item name, descript
 
 ## Important scope note
 
-The public landing page and owner menu workflow are implemented. Online order submission, kitchen workflow, POS billing, inventory, and payment processing are not yet complete production workflows. Subscription payment references are submitted for manual verification; selecting a plan does not itself activate a subscription.
+The guest-order and owner-order code paths are implemented, but must still be tested end to end against the live Supabase project. The owner dashboard uses a 15-second polling fallback if Realtime is unavailable; browser alerts require the dashboard to remain open. Subscription checkout generates a UPI payment QR and stores the submitted transaction reference. It is not an automated payment gateway: a Super Admin must verify the payment before activation. Do not treat a subscription as active until that review succeeds.
+
+POS billing, a dedicated kitchen display, staff scheduling, inventory management and sales analytics are not implemented yet and are marked as in development on the landing page.
 
 ## Brand
 
