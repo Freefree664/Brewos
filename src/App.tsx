@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 
 const copy = {
   en: {
@@ -367,7 +368,9 @@ function App() {
 <b style={{fontSize:12}}>One-time QR token — keep private</b>
 <p style={{fontSize:11,margin:'6px 0',overflowWrap:'anywhere'}}>{newTableToken}</p>
 <button type="button" className="outline-btn" style={{width:'auto',padding:'8px 12px'}} onClick={()=>void navigator.clipboard?.writeText(newTableToken)}>Copy token</button>
-<p style={{fontSize:11,margin:'8px 0 0'}}>Save this token securely. It is shown only once. A printable QR code and guest ordering flow will be added separately.</p>
+<p style={{fontSize:11,margin:'8px 0 0'}}>Save this QR code securely. It contains the one-time table token. Scanning it does not place an order.</p>
+<div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={newTableToken} size={220} level="M" includeMargin /></div>
+<p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to read the table token. Guest ordering will be connected later.</p>
 </div>}
 <div style={{display:'grid',gap:8,marginTop:14}}>
 <b style={{fontSize:13}}>Existing tables</b>
