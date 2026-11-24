@@ -1,30 +1,64 @@
 # BrewOS
 
-BrewOS is a café management web app built with React, Vite, TypeScript and Supabase.
+BrewOS is a café ordering and management web app built with React, Vite, TypeScript and Supabase.
 
 ## Current working areas
 
 - Public BrewOS landing page with English/Hindi language toggle
-- Supabase authentication and owner dashboard
-- Restaurant and branch setup
-- Restaurant and branch setup, plus dining table creation and QR token generation
-- Owner-managed menu items: name, description, category, selling price, preparation cost, photo and availability
-- Estimated item profit for owners (private cost data is not displayed to guests)
-- Guest QR check-in, menu browsing, cart and staff-PIN-protected order submission
-- Owner order dashboard with status updates, Supabase Realtime subscription and a 15-second polling fallback
-- Browser notifications for new orders when the owner dashboard is open and notification permission is granted
-- UPI QR subscription checkout with transaction-reference submission and manual Super Admin verification
+- Supabase email authentication and owner workspace
+- Restaurant, first-branch and dining-table setup
+- Guest-facing table QR, digital menu, cart and staff-PIN-protected order submission
+- Owner menu tools for categories, photos, availability, selling prices and private preparation costs
+- Order dashboard with status updates, Supabase Realtime and a 15-second polling fallback
+- Optional browser notifications while the owner dashboard is open
+- UPI QR subscription requests with transaction-reference submission and manual Super Admin verification
+
+## Not yet implemented
+
+- POS cashier billing and split payments
+- Dedicated kitchen display / preparation queue
+- Staff scheduling, attendance and waiter assignment
+- Inventory and ingredient tracking
+- Sales reports and analytics
+
+The landing page labels these items as in development. Do not advertise them as available features until they are implemented and tested.
 
 ## Supabase configuration
 
-Set these Vite environment variables before building:
+Set these Vite environment variables for every build context:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Use the project's Supabase publishable/anon key only. Never put a service-role key or database password in frontend environment variables.
+Use only the Supabase publishable/anon key in the browser. Never put a service-role key, database password, or other server secret in frontend environment variables.
 
-## Run locally
+## Database migrations
+
+For a new Supabase project, review and apply migrations in numeric order:
+
+1. `0001_initial_schema.sql`
+2. `0002_subscription_payment_requests.sql`
+3. `0003_super_admin_payment_review.sql`
+4. `0004_owner_onboarding.sql`
+5. `0005_menu_item_costs_and_storage.sql`
+6. `0006_table_qr_foundation.sql`
+7. `0007_guest_ordering.sql`
+8. `0008_super_admin_cafe_moderation_and_realtime.sql`
+
+For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
+
+The first Super Admin must be added to `public.super_admins` by a trusted project administrator using the Supabase SQL Editor. Do not expose an administrative key in the app.
+
+### Public QR menu functions still need to be versioned
+
+The guest page calls:
+
+- `get_public_table_info(p_token)`
+- `get_public_cafe_menu(p_slug)`
+
+These two RPC definitions are not currently present in the repository migration folder. The current database has been configured separately for the public menu/table flow, but the exact deployed definitions and return shape still need to be recovered and committed as a migration. Keep their outputs guest-safe: menu item name, description, category, selling price, image URL and availability only. Never expose preparation costs or profit details.
+
+## Local development
 
 ```bash
 npm install
@@ -39,32 +73,29 @@ npm run build
 
 The static production files are generated in `dist/`.
 
-## Hostinger deployment (static Vite site)
+## Deployment
 
-BrewOS currently builds as a static Vite frontend; Supabase provides authentication and database services. A Hostinger plan that supports static/PHP website hosting is sufficient for this frontend. Node.js hosting is not required for the current Vite build.
+BrewOS currently uses Netlify. The build command and publish directory are configured in `netlify.toml`:
 
-1. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the build environment.
-2. Run `npm install` and `npm run build` on a computer with Node.js.
-3. In Hostinger, create/select the target website after the hosting plan is active.
-4. Upload the **contents** of the generated `dist/` folder into the website's document root (usually `public_html`), not the source-code folder.
-5. Open the website and test sign-in, owner dashboard, menu editing, and a table QR link.
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Node.js: 20
 
-Do not upload `.env`, service-role keys, database credentials, or the full source repository to the public document root. Do not overwrite an existing website until its contents have been backed up.
+The `feature/owner-dashboard` branch deploys as a Netlify preview. The production site follows `main`; do not treat a branch preview as the production release. Merge and production release only after the database and end-to-end checks pass.
 
-## QR menu backend dependency
+Hostinger migration can be done later if/when a suitable plan is purchased. The current Vite frontend is static; Supabase continues to provide auth and database services.
 
-The QR guest page calls these Supabase RPCs:
+## Operational checks before launch
 
-- `get_public_table_info(p_token)`
-- `get_public_cafe_menu(p_slug)`
+- Confirm the public QR RPC definitions and database migration state.
+- Test owner restaurant creation, approval and table QR generation using an authorized account.
+- Test menu create/edit/availability and photo upload with owner RLS.
+- Test one complete guest order with an active table and a staff-issued PIN.
+- Confirm order status updates and Realtime/polling notifications.
+- Test the subscription request and Super Admin review flow using a test payment record; never approve a real payment without independently verifying the transaction.
+- Test fresh QR scans against the current production domain after the production deploy.
 
-The second function must return guest-safe menu fields only (item name, description, category, selling price, image URL and availability). It must never expose preparation costs or profit data. Verify the exact SQL function signature and return shape against the deployed Supabase schema before treating QR menu display as production-ready.
-
-## Important scope note
-
-The guest-order and owner-order code paths are implemented, but must still be tested end to end against the live Supabase project. The owner dashboard uses a 15-second polling fallback if Realtime is unavailable; browser alerts require the dashboard to remain open. Subscription checkout generates a UPI payment QR and stores the submitted transaction reference. It is not an automated payment gateway: a Super Admin must verify the payment before activation. Do not treat a subscription as active until that review succeeds.
-
-POS billing, a dedicated kitchen display, staff scheduling, inventory management and sales analytics are not implemented yet and are marked as in development on the landing page.
+The guest-order and owner-order code paths are implemented, but a successful frontend build does not prove these live database flows have passed. Browser alerts require the dashboard to remain open. Subscription checkout is not an automated payment gateway: a Super Admin must verify payment before activation.
 
 ## Brand
 
