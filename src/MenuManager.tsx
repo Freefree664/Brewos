@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 
 type Cafe = { id: string; name: string }
@@ -15,11 +15,11 @@ type MenuItem = {
 type Category = { id: string; name: string }
 type CostRow = { menu_item_id: string; cost_price_paise: number }
 
-const fieldStyle: React.CSSProperties = {
+const fieldStyle: CSSProperties = {
   display: 'block', width: '100%', padding: 11, border: '1px solid #d6d3d1',
   borderRadius: 9, marginTop: 5, boxSizing: 'border-box', background: '#fff'
 }
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, color: '#57534e' }
+const labelStyle: CSSProperties = { display: 'block', fontSize: 12, color: '#57534e' }
 const money = (paise: number) => (paise / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
 const toPaise = (value: string) => Math.round(Number(value) * 100)
 
@@ -78,7 +78,7 @@ export default function MenuManager({ cafes }: { cafes: Cafe[] }) {
         .select('id,name,description,image_url,price_paise,is_available,category_id')
         .eq('cafe_id', cafeId).eq('branch_id', branchId).order('created_at', { ascending: false }),
       supabase.from('menu_categories').select('id,name')
-        .eq('cafe_id', cafeId).eq('active', true).order('sort_order'),
+        .eq('cafe_id', cafeId).eq('active', true).or('branch_id.is.null,branch_id.eq.' + branchId).order('sort_order'),
       supabase.from('menu_item_costs').select('menu_item_id,cost_price_paise').eq('cafe_id', cafeId)
     ])
     setLoading(false)
