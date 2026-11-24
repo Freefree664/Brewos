@@ -45,19 +45,20 @@ For a new Supabase project, review and apply migrations in numeric order:
 7. `0007_guest_ordering.sql`
 8. `0008_super_admin_cafe_moderation_and_realtime.sql`
 9. `0009_restrict_internal_security_definer_rpcs.sql`
+10. `0010_version_public_qr_menu_rpcs.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
 
 The first Super Admin must be added to `public.super_admins` by a trusted project administrator using the Supabase SQL Editor. Do not expose an administrative key in the app.
 
-### Public QR menu functions still need to be versioned
+### Public QR menu functions
 
 The guest page calls:
 
 - `get_public_table_info(p_token)`
 - `get_public_cafe_menu(p_slug)`
 
-These two RPC definitions are not currently present in the repository migration folder. The current database has been configured separately for the public menu/table flow, but the exact deployed definitions and return shape still need to be recovered and committed as a migration. Keep their outputs guest-safe: menu item name, description, category, selling price, image URL and availability only. Never expose preparation costs or profit details.
+Their verified live definitions are versioned in `0010_version_public_qr_menu_rpcs.sql`. The table lookup accepts a full QR token and returns only restaurant, branch and table labels. The public menu RPC returns guest-facing menu data only; it does not return preparation costs or profit details.
 
 ## Local development
 
