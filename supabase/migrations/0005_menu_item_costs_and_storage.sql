@@ -73,8 +73,8 @@ create policy "Public read BrewOS menu images"
   to public
   using (bucket_id = 'menu-item-images');
 
-drop policy if exists "Cafe managers upload BrewOS menu images" on storage.objects;
-create policy "Cafe managers upload BrewOS menu images"
+drop policy if exists "Cafe owners upload BrewOS menu images" on storage.objects;
+create policy "Cafe owners upload BrewOS menu images"
   on storage.objects
   for insert
   to authenticated
@@ -90,8 +90,8 @@ create policy "Cafe managers upload BrewOS menu images"
     )
   );
 
-drop policy if exists "Cafe managers update BrewOS menu images" on storage.objects;
-create policy "Cafe managers update BrewOS menu images"
+drop policy if exists "Cafe owners update BrewOS menu images" on storage.objects;
+create policy "Cafe owners update BrewOS menu images"
   on storage.objects
   for update
   to authenticated
@@ -118,8 +118,8 @@ create policy "Cafe managers update BrewOS menu images"
     )
   );
 
-drop policy if exists "Cafe managers delete BrewOS menu images" on storage.objects;
-create policy "Cafe managers delete BrewOS menu images"
+drop policy if exists "Cafe owners delete BrewOS menu images" on storage.objects;
+create policy "Cafe owners delete BrewOS menu images"
   on storage.objects
   for delete
   to authenticated
