@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 
 type Cafe = { id: string; name: string }
@@ -34,6 +34,10 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState('')
   const [message, setMessage] = useState('')
+  const [liveMessage, setLiveMessage] = useState('')
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => typeof Notification === 'undefined' ? 'denied' : Notification.permission)
+  const knownOrderIds = useRef<Set<string>>(new Set())
+  const hasInitialOrders = useRef(false)
 
   useEffect(() => {
     if (!cafeId || !supabase) {
@@ -58,12 +62,39 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
   useEffect(() => {
     if (!cafeId || !branchId || !supabase) {
       setOrders([])
+      knownOrderIds.current = new Set()
+      hasInitialOrders.current = false
       return
     }
-    void loadOrders()
+    hasInitialOrders.current = false
+    knownOrderIds.current = new Set()
+    void loadOrders(false)
+    const channel = supabase.channel(`owner-orders-${cafeId}-${branchId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'orders',
+        filter: `cafe_id=eq.${cafeId}`
+      }, payload => {
+        const incoming = payload.new as { id?: string; branch_id?: string; order_number?: number }
+        if (incoming.branch_id !== branchId || !incoming.id || knownOrderIds.current.has(incoming.id)) return
+        knownOrderIds.current.add(incoming.id)
+        const notice = `New order #${incoming.order_number ?? ''} received`
+        setLiveMessage(notice)
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification('BrewOS — New order', { body: notice })
+        }
+        void loadOrders(false)
+      })
+      .subscribe()
+    const poll = window.setInterval(() => void loadOrders(true), 15000)
+    return () => {
+      window.clearInterval(poll)
+      void supabase.removeChannel(channel)
+    }
   }, [cafeId, branchId])
 
-  async function loadOrders() {
+  async function loadOrders(notifyNew = false) {
     if (!supabase || !cafeId || !branchId) return
     setLoading(true)
     setMessage('')
@@ -73,7 +104,33 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
       .order('created_at', { ascending: false }).limit(50)
     setLoading(false)
     if (error) { setMessage(error.message); return }
-    setOrders((data || []) as unknown as Order[])
+    const rows = (data || []) as unknown as Order[]
+    const currentIds = new Set(rows.map(row => row.id))
+    if (hasInitialOrders.current && notifyNew) {
+      const newOrders = rows.filter(row => !knownOrderIds.current.has(row.id))
+      if (newOrders.length) {
+        const newest = newOrders[0]
+        const notice = `New order #${newest.order_number} received`
+        setLiveMessage(notice)
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification('BrewOS — New order', { body: notice })
+        }
+      }
+    }
+    knownOrderIds.current = currentIds
+    hasInitialOrders.current = true
+    setOrders(rows)
+  }
+
+  async function enableNotifications() {
+    if (typeof Notification === 'undefined') {
+      setMessage('Browser notifications are not supported on this device.')
+      return
+    }
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+    if (permission === 'granted') setLiveMessage('Notifications are enabled on this device.')
+    else setMessage('Notifications were not enabled. New orders will still appear in this dashboard.')
   }
 
   async function updateStatus(order: Order, status: string) {
@@ -90,7 +147,7 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
   return <section style={{ borderTop: '1px solid #eee9df', paddingTop: 18, marginTop: 20 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
       <div><h3 style={{ fontSize: 16, margin: 0 }}>Incoming orders</h3><p style={{ fontSize: 12, color: '#78716c', margin: '5px 0 12px' }}>Review guest orders and update their progress.</p></div>
-      <button type="button" className="outline-btn" style={{ width: 'auto', padding: '8px 12px' }} onClick={() => void loadOrders()} disabled={loading || !branchId}>Refresh</button>
+      <button type="button" className="outline-btn" style={{ width: 'auto', padding: '8px 12px' }} onClick={() => void loadOrders(false)} disabled={loading || !branchId}>Refresh</button>
     </div>
     <label style={{ display: 'block', fontSize: 12 }}>Restaurant
       <select value={cafeId} onChange={event => setCafeId(event.target.value)} style={{ display: 'block', width: '100%', padding: 11, border: '1px solid #d6d3d1', borderRadius: 9, marginTop: 5, background: '#fff' }}>
