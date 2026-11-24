@@ -3,6 +3,7 @@ import { supabase, supabaseConfigured } from './lib/supabase'
 import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import MenuManager from './MenuManager'
+import { CustomerOrdering, TablePinIssuer } from './CustomerOrdering'
 
 const copy = {
   en: {
@@ -190,24 +191,11 @@ function App() {
             <div style={{fontSize:12,color:'#78716c',fontWeight:700,letterSpacing:1}}>YOUR TABLE</div>
             <div style={{fontSize:30,fontWeight:800,color:'#047857',marginTop:5}}>{qrTableInfo.table_name}</div>
           </div>
-          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu below and ask the café team to place your order.</p>
-          <section style={{textAlign:'left',marginTop:22,borderTop:'1px solid #eee9df',paddingTop:18}}>
-            <h2 style={{fontSize:20,margin:'0 0 12px',color:'#292524'}}>Our menu</h2>
-            {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
-            {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
-            <div style={{display:'grid',gap:12}}>
-              {qrMenuItems.map(item=><article key={item.id} style={{display:'flex',gap:12,alignItems:'center',border:'1px solid #e7e5e4',borderRadius:12,padding:10}}>
-                {item.image ? <img src={item.image} alt={item.name} style={{width:88,height:82,objectFit:'cover',borderRadius:9,background:'#f5f5f4'}}/> : <div style={{width:88,height:82,display:'grid',placeItems:'center',borderRadius:9,background:'#f5f5f4',color:'#78716c',fontSize:11}}>No photo</div>}
-                <div style={{minWidth:0,flex:1}}>
-                  <div style={{fontSize:14,fontWeight:700,color:'#292524'}}>{item.name}</div>
-                  <div style={{fontSize:11,color:'#78716c',marginTop:3}}>{item.category}</div>
-                  {item.description&&<p style={{fontSize:12,lineHeight:1.45,color:'#78716c',margin:'5px 0'}}>{item.description}</p>}
-                  <div style={{fontSize:14,fontWeight:800,color:'#047857'}}>₹{(item.price/100).toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
-                </div>
-              </article>)}
-            </div>
-          </section>
-          <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Online ordering and payment are not enabled yet. Please order with the café team.</p>
+          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu, add items to your cart, and ask café staff for an order PIN.</p>
+          {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
+          {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
+          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} />
+          <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Payment is not collected here. The café team will confirm your order.</p>
         </>}
         <a href="/" style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
       </main>
@@ -495,7 +483,7 @@ function App() {
 <div style={{display:'grid',gap:8,marginTop:14}}>
 <b style={{fontSize:13}}>Existing tables</b>
 {tableBusy&&<small>Loading tables…</small>}
-{diningTables.filter(table=>table.branch_id===tableBranchId).map(table=><div key={table.id} style={{display:'flex',justifyContent:'space-between',gap:10,border:'1px solid #e7e5e4',borderRadius:9,padding:10,fontSize:12}}><b>{table.table_name}</b><span style={{color:table.active?'#047857':'#78716c'}}>{table.active?'Active':'Inactive'}</span></div>)}
+{diningTables.filter(table=>table.branch_id===tableBranchId).map(table=><div key={table.id} style={{border:'1px solid #e7e5e4',borderRadius:9,padding:10,fontSize:12}}><div style={{display:'flex',justifyContent:'space-between',gap:10}}><b>{table.table_name}</b><span style={{color:table.active?'#047857':'#78716c'}}>{table.active?'Active':'Inactive'}</span></div>{table.active&&<TablePinIssuer tableId={table.id}/>}</div>)}
 {!tableBusy&&tableCafeId&&diningTables.filter(table=>table.branch_id===tableBranchId).length===0&&<small>No tables created for this branch yet.</small>}
 </div></>}
 </div><div style={{borderTop:'1px solid #eee9df',paddingTop:18}}><h3 style={{fontSize:16,margin:'0 0 12px'}}>Add a restaurant</h3><form onSubmit={createCafe} style={{display:'grid',gap:11}}><label style={{fontSize:12}}>Restaurant name<input required minLength={2} maxLength={100} value={cafeName} onChange={e=>{setCafeName(e.target.value);setCafeSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))}} placeholder="e.g. The Green Cup" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>Restaurant web address<input required maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={cafeSlug} onChange={e=>setCafeSlug(e.target.value.toLowerCase())} placeholder="the-green-cup" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/><small style={{color:'#78716c'}}>Lowercase letters, numbers and hyphens only.</small></label><label style={{fontSize:12}}>Description (optional)<textarea maxLength={500} value={cafeDescription} onChange={e=>setCafeDescription(e.target.value)} placeholder="Tell guests a little about your restaurant" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,minHeight:70}}/></label><label style={{fontSize:12}}>Contact phone (optional)<input type="tel" maxLength={25} value={cafePhone} onChange={e=>setCafePhone(e.target.value)} placeholder="Restaurant contact number" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>First branch name<input required maxLength={100} value={branchName} onChange={e=>setBranchName(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>Branch address (optional)<textarea maxLength={300} value={branchAddress} onChange={e=>setBranchAddress(e.target.value)} placeholder="Street, area, city" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,minHeight:65}}/></label><button className="btn" disabled={ownerBusy||!supabaseConfigured} style={{justifyContent:'center'}}>{ownerBusy?'Creating…':'Create restaurant'} <ArrowRight size={15}/></button></form></div>{ownerMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{ownerMessage}</p>}<button className="outline-btn" style={{width:'100%',marginTop:10}} onClick={()=>setOwnerOpen(false)}>Close</button></div></div>}
