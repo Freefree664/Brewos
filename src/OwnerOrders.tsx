@@ -159,6 +159,15 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
         {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
       </select>
     </label>}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+      <button type="button" className="outline-btn" style={{ width: 'auto', padding: '8px 12px' }} onClick={() => void enableNotifications()} disabled={notificationPermission === 'granted' || typeof Notification === 'undefined'}>
+        {notificationPermission === 'granted' ? 'Notifications enabled' : 'Enable notifications'}
+      </button>
+      <span style={{ fontSize: 11, color: '#78716c' }}>
+        {typeof Notification === 'undefined' ? 'Browser notifications unavailable' : notificationPermission === 'granted' ? 'This device can show new-order alerts' : 'Optional browser alerts'}
+      </span>
+    </div>
+    {liveMessage && <p role="status" style={{ fontSize: 12, color: '#047857', background: '#ecfdf5', borderRadius: 8, padding: 10, marginTop: 10 }}>{liveMessage}</p>}
     {loading && <p role="status" style={{ fontSize: 12, color: '#78716c' }}>Loading orders…</p>}
     {!loading && cafeId && branchId && orders.length === 0 && <p style={{ fontSize: 12, color: '#78716c' }}>No orders yet for this branch. New guest orders will appear here after refresh.</p>}
     <div style={{ display: 'grid', gap: 11, marginTop: 12 }}>
