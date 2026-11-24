@@ -193,7 +193,7 @@ export default function MenuManager({ cafes }: { cafes: Cafe[] }) {
   }
 
   const input = (label: string, value: string, onChange: (value: string) => void, type = 'text', required = true) => (
-    <label style={labelStyle}>{label}<input required={required} type={type} value={value} onChange={event => onChange(event.target.value)} style={fieldStyle} /></label>
+    <label style={labelStyle}>{label}<input required={required} type={type} min={type === 'number' ? '0' : undefined} step={type === 'number' ? '0.01' : undefined} value={value} onChange={event => onChange(event.target.value)} style={fieldStyle} /></label>
   )
 
   return <section style={{borderTop:'1px solid #eee9df',paddingTop:18,marginTop:18}}>
