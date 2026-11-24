@@ -60,7 +60,8 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
   }, [cafeId])
 
   useEffect(() => {
-    if (!cafeId || !branchId || !supabase) {
+    const client = supabase
+    if (!cafeId || !branchId || !client) {
       setOrders([])
       knownOrderIds.current = new Set()
       hasInitialOrders.current = false
@@ -69,7 +70,7 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
     hasInitialOrders.current = false
     knownOrderIds.current = new Set()
     void loadOrders(false)
-    const channel = supabase.channel(`owner-orders-${cafeId}-${branchId}`)
+    const channel = client.channel(`owner-orders-${cafeId}-${branchId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -90,7 +91,7 @@ export default function OwnerOrders({ cafes }: { cafes: Cafe[] }) {
     const poll = window.setInterval(() => void loadOrders(true), 15000)
     return () => {
       window.clearInterval(poll)
-      void supabase.removeChannel(channel)
+      void client.removeChannel(channel)
     }
   }, [cafeId, branchId])
 
