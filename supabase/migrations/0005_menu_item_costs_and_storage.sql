@@ -63,6 +63,9 @@ set public = excluded.public,
     allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "Public read BrewOS menu images" on storage.objects;
+drop policy if exists "Cafe managers upload BrewOS menu images" on storage.objects;
+drop policy if exists "Cafe managers update BrewOS menu images" on storage.objects;
+drop policy if exists "Cafe managers delete BrewOS menu images" on storage.objects;
 drop policy if exists "menu_item_images_owner_delete" on storage.objects;
 drop policy if exists "menu_item_images_owner_update" on storage.objects;
 drop policy if exists "menu_item_images_owner_upload" on storage.objects;
