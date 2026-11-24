@@ -72,6 +72,10 @@ function App() {
   const [tableBusy,setTableBusy] = useState(false)
   const [tableMessage,setTableMessage] = useState('')
   const [newTableToken,setNewTableToken] = useState('')
+  const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string} | null>(null)
+  const [qrTableLoading,setQrTableLoading] = useState(false)
+  const [qrTableError,setQrTableError] = useState('')
+  const qrTokenFromUrl = new URLSearchParams(window.location.search).get('table') || ''
   const [cafeName,setCafeName] = useState('')
   const [cafeSlug,setCafeSlug] = useState('')
   const [cafeDescription,setCafeDescription] = useState('')
@@ -92,7 +96,54 @@ function App() {
     })
     return () => listener.subscription.unsubscribe()
   }, [])
+  useEffect(() => {
+    if (!qrTokenFromUrl) return
+    let active = true
+    async function loadPublicTableInfo() {
+      if (!supabase) {
+        setQrTableError('The table page is not connected to the service yet.')
+        return
+      }
+      setQrTableLoading(true)
+      const { data, error } = await supabase.rpc('get_public_table_info', { p_token: qrTokenFromUrl })
+      if (!active) return
+      setQrTableLoading(false)
+      if (error) {
+        setQrTableError('We could not verify this table QR code. Please ask the café team for help.')
+        return
+      }
+      if (!data) {
+        setQrTableError('This table QR code is invalid, inactive, or no longer available.')
+        return
+      }
+      setQrTableInfo(data as {restaurant_name:string;branch_name:string;table_name:string})
+    }
+    void loadPublicTableInfo()
+    return () => { active = false }
+  }, [qrTokenFromUrl])
   const t = copy[lang]
+  if (qrTokenFromUrl) {
+    return <div style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:24,background:'#f7f5f0',fontFamily:'inherit'}}>
+      <main style={{width:'100%',maxWidth:460,background:'#fff',border:'1px solid #e7e5e4',borderRadius:20,padding:28,textAlign:'center',boxShadow:'0 12px 40px rgba(0,0,0,.06)'}}>
+        <div style={{width:52,height:52,margin:'0 auto 16px',borderRadius:16,display:'grid',placeItems:'center',background:'#ecfdf5',color:'#047857'}}><Coffee size={25}/></div>
+        <div style={{fontSize:12,letterSpacing:2,fontWeight:800,color:'#78716c'}}>BREWOS · TABLE CHECK-IN</div>
+        <h1 style={{fontSize:28,margin:'10px 0 8px',color:'#292524'}}>Welcome</h1>
+        {qrTableLoading && <p role="status" style={{color:'#78716c'}}>Checking your table…</p>}
+        {qrTableError && <p role="alert" style={{color:'#b91c1c',lineHeight:1.6}}>{qrTableError}</p>}
+        {qrTableInfo && <>
+          <p style={{fontSize:18,fontWeight:700,margin:'16px 0 4px',color:'#292524'}}>{qrTableInfo.restaurant_name}</p>
+          <p style={{margin:4,color:'#78716c'}}>{qrTableInfo.branch_name}</p>
+          <div style={{margin:'22px 0',padding:20,borderRadius:14,background:'#f5f5f4'}}>
+            <div style={{fontSize:12,color:'#78716c',fontWeight:700,letterSpacing:1}}>YOUR TABLE</div>
+            <div style={{fontSize:30,fontWeight:800,color:'#047857',marginTop:5}}>{qrTableInfo.table_name}</div>
+          </div>
+          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Please ask the café team for assistance with the menu.</p>
+          <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Online ordering is not enabled yet.</p>
+        </>}
+        <a href="/" style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
+      </main>
+    </div>
+  }
   const subscriptionExpiry: Date | null = subscription?.expires_at ? new Date(subscription.expires_at) : null
   const subscriptionExpired: boolean = Boolean(subscription && (subscription.status !== 'active' || (subscriptionExpiry !== null && subscriptionExpiry.getTime() <= Date.now())))
   const subscriptionRemaining: number | null = subscriptionExpiry !== null ? Math.max(0, Math.ceil((subscriptionExpiry.getTime() - Date.now()) / 86400000)) : null
@@ -369,8 +420,8 @@ function App() {
 <p style={{fontSize:11,margin:'6px 0',overflowWrap:'anywhere'}}>{newTableToken}</p>
 <button type="button" className="outline-btn" style={{width:'auto',padding:'8px 12px'}} onClick={()=>void navigator.clipboard?.writeText(newTableToken)}>Copy token</button>
 <p style={{fontSize:11,margin:'8px 0 0'}}>Save this QR code securely. It contains the one-time table token. Scanning it does not place an order.</p>
-<div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={newTableToken} size={220} level="M" includeMargin /></div>
-<p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to read the table token. Guest ordering will be connected later.</p>
+<div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={`${window.location.origin}/?table=${encodeURIComponent(newTableToken)}`} size={220} level="M" includeMargin /></div>
+<p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to open this table page. It only identifies the table; online ordering is not enabled yet.</p>
 </div>}
 <div style={{display:'grid',gap:8,marginTop:14}}>
 <b style={{fontSize:13}}>Existing tables</b>
