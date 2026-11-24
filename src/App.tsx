@@ -76,6 +76,9 @@ function App() {
   const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string} | null>(null)
   const [qrTableLoading,setQrTableLoading] = useState(false)
   const [qrTableError,setQrTableError] = useState('')
+  const [qrMenuItems,setQrMenuItems] = useState<Array<{id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}>>([])
+  const [qrMenuLoading,setQrMenuLoading] = useState(false)
+  const [qrMenuError,setQrMenuError] = useState('')
   const qrTokenFromUrl = new URLSearchParams(window.location.search).get('table') || ''
   const [cafeName,setCafeName] = useState('')
   const [cafeSlug,setCafeSlug] = useState('')
@@ -117,7 +120,45 @@ function App() {
         setQrTableError('This table QR code is invalid, inactive, or no longer available.')
         return
       }
-      setQrTableInfo(data as {restaurant_name:string;branch_name:string;table_name:string})
+      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;cafe_slug?:string;slug?:string}
+      setQrTableInfo(tableInfo)
+      setQrMenuLoading(true)
+      setQrMenuError('')
+      // The public RPC returns guest-safe menu fields only. Never query private cost/profit tables here.
+      const menuSlug = (tableInfo.cafe_slug || tableInfo.slug || tableInfo.restaurant_name
+        .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))
+      const { data: menuData, error: menuError } = await supabase.rpc('get_public_cafe_menu', { p_slug: menuSlug })
+      if (!active) return
+      setQrMenuLoading(false)
+      if (menuError) {
+        setQrMenuError('The menu could not be loaded yet. Please ask the café team for assistance.')
+        return
+      }
+      const menuRoot = menuData as unknown
+      const rawItems = Array.isArray(menuRoot) ? menuRoot
+        : menuRoot && typeof menuRoot === 'object'
+          ? ((menuRoot as {items?:unknown[];menu_items?:unknown[];menu?:unknown[]}).items
+            || (menuRoot as {menu_items?:unknown[]}).menu_items
+            || (menuRoot as {menu?:unknown[]}).menu || [])
+          : []
+      const normalized = rawItems.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+        .map((row, index) => {
+          const rawPrice = row.price_paise ?? row.price ?? row.selling_price_paise ?? 0
+          const numericPrice = Number(rawPrice)
+          const priceInPaise = row.price_paise !== undefined || row.selling_price_paise !== undefined
+            ? numericPrice : Math.round(numericPrice * 100)
+          return {
+            id: String(row.id ?? index),
+            name: String(row.name ?? row.item_name ?? 'Menu item'),
+            description: row.description == null ? null : String(row.description),
+            category: String(row.category_name ?? row.category ?? 'Menu'),
+            price: Number.isFinite(priceInPaise) ? priceInPaise : 0,
+            image: row.image_url == null ? (row.image == null ? null : String(row.image)) : String(row.image_url),
+            available: row.is_available !== false && row.available !== false
+          }
+        }).filter(item => item.available)
+      setQrMenuItems(normalized)
+      if (!normalized.length) setQrMenuError('The café has not added any available menu items yet.')
     }
     void loadPublicTableInfo()
     return () => { active = false }
@@ -138,8 +179,24 @@ function App() {
             <div style={{fontSize:12,color:'#78716c',fontWeight:700,letterSpacing:1}}>YOUR TABLE</div>
             <div style={{fontSize:30,fontWeight:800,color:'#047857',marginTop:5}}>{qrTableInfo.table_name}</div>
           </div>
-          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Please ask the café team for assistance with the menu.</p>
-          <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Online ordering is not enabled yet.</p>
+          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu below and ask the café team to place your order.</p>
+          <section style={{textAlign:'left',marginTop:22,borderTop:'1px solid #eee9df',paddingTop:18}}>
+            <h2 style={{fontSize:20,margin:'0 0 12px',color:'#292524'}}>Our menu</h2>
+            {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
+            {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
+            <div style={{display:'grid',gap:12}}>
+              {qrMenuItems.map(item=><article key={item.id} style={{display:'flex',gap:12,alignItems:'center',border:'1px solid #e7e5e4',borderRadius:12,padding:10}}>
+                {item.image ? <img src={item.image} alt={item.name} style={{width:88,height:82,objectFit:'cover',borderRadius:9,background:'#f5f5f4'}}/> : <div style={{width:88,height:82,display:'grid',placeItems:'center',borderRadius:9,background:'#f5f5f4',color:'#78716c',fontSize:11}}>No photo</div>}
+                <div style={{minWidth:0,flex:1}}>
+                  <div style={{fontSize:14,fontWeight:700,color:'#292524'}}>{item.name}</div>
+                  <div style={{fontSize:11,color:'#78716c',marginTop:3}}>{item.category}</div>
+                  {item.description&&<p style={{fontSize:12,lineHeight:1.45,color:'#78716c',margin:'5px 0'}}>{item.description}</p>}
+                  <div style={{fontSize:14,fontWeight:800,color:'#047857'}}>₹{(item.price/100).toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
+                </div>
+              </article>)}
+            </div>
+          </section>
+          <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Online ordering and payment are not enabled yet. Please order with the café team.</p>
         </>}
         <a href="/" style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
       </main>
