@@ -1,26 +1,103 @@
 # BrewOS
 
-A modern, colorful café management platform.
+BrewOS is a café ordering and management web app built with React, Vite, TypeScript and Supabase.
 
-## First milestone
+## Current working areas
 
-- Responsive public website for desktop, tablet and mobile
-- English and Hindi language toggle
-- Feature overview for ordering, POS, kitchen, team, inventory and analytics
-- Selected subscription pricing
-- Interactive dashboard preview
+- Public BrewOS landing page with English/Hindi language toggle
+- Supabase email authentication and owner workspace
+- Restaurant, first-branch and dining-table setup
+- Guest-facing table QR, digital menu, cart and staff-PIN-protected order submission
+- Owner menu tools for categories, photos, availability, selling prices and private preparation costs
+- Order dashboard with status updates, Supabase Realtime and a 15-second polling fallback
+- Optional browser notifications while the owner dashboard is open
+- UPI QR subscription requests with transaction-reference submission and manual Super Admin verification
 
-## Run locally
+## Not yet implemented
 
-Install dependencies with `npm install`, then run `npm run dev`.
+- POS cashier billing and split payments
+- Dedicated kitchen display / preparation queue
+- Staff scheduling, attendance and waiter assignment
+- Inventory and ingredient tracking
+- Sales reports and analytics
 
-## Build
+The landing page labels these items as in development. Do not advertise them as available features until they are implemented and tested.
 
-Run `npm run build`.
+## Supabase configuration
+
+Set these Vite environment variables for every build context:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Use only the Supabase publishable/anon key in the browser. Never put a service-role key, database password, or other server secret in frontend environment variables.
+
+## Database migrations
+
+For a new Supabase project, review and apply migrations in numeric order:
+
+1. `0001_initial_schema.sql`
+2. `0002_subscription_payment_requests.sql`
+3. `0003_super_admin_payment_review.sql`
+4. `0004_owner_onboarding.sql`
+5. `0005_menu_item_costs_and_storage.sql`
+6. `0006_table_qr_foundation.sql`
+7. `0007_guest_ordering.sql`
+8. `0008_super_admin_cafe_moderation_and_realtime.sql`
+9. `0009_restrict_internal_security_definer_rpcs.sql`
+10. `0010_version_public_qr_menu_rpcs.sql`
+
+For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
+
+The first Super Admin must be added to `public.super_admins` by a trusted project administrator using the Supabase SQL Editor. Do not expose an administrative key in the app.
+
+### Public QR menu functions
+
+The guest page calls:
+
+- `get_public_table_info(p_token)`
+- `get_public_cafe_menu(p_slug)`
+
+Their verified live definitions are versioned in `0010_version_public_qr_menu_rpcs.sql`. The table lookup accepts a full QR token and returns only restaurant, branch and table labels. The public menu RPC returns guest-facing menu data only; it does not return preparation costs or profit details.
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+## Production build
+
+```bash
+npm run build
+```
+
+The static production files are generated in `dist/`.
 
 ## Deployment
 
-Configured for Netlify static hosting. This milestone is a frontend foundation only. Authentication, tenant isolation, database, live ordering, payments and operational workflows are not yet connected.
+BrewOS currently uses Netlify. The build command and publish directory are configured in `netlify.toml`:
+
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Node.js: 20
+
+The `feature/owner-dashboard` branch deploys as a Netlify preview. The production site follows `main`; do not treat a branch preview as the production release. Merge and production release only after the database and end-to-end checks pass.
+
+Hostinger migration can be done later if/when a suitable plan is purchased. The current Vite frontend is static; Supabase continues to provide auth and database services.
+
+## Operational checks before launch
+
+- Confirm the public QR RPC definitions and database migration state.
+- Test owner restaurant creation, approval and table QR generation using an authorized account.
+- Test menu create/edit/availability and photo upload with owner RLS.
+- Test one complete guest order with an active table and a staff-issued PIN.
+- Confirm order status updates and Realtime/polling notifications.
+- Test the subscription request and Super Admin review flow using a test payment record; never approve a real payment without independently verifying the transaction.
+- Test fresh QR scans against the current production domain after the production deploy.
+
+The guest-order and owner-order code paths are implemented, but a successful frontend build does not prove these live database flows have passed. Browser alerts require the dashboard to remain open. Subscription checkout is not an automated payment gateway: a Super Admin must verify payment before activation.
 
 ## Brand
 
