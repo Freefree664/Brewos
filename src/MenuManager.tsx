@@ -124,8 +124,8 @@ export default function MenuManager({ cafes }: { cafes: Cafe[] }) {
       setMessage('Please upload an image for this menu item.')
       return
     }
-    if (imageFile && (!imageFile.type.startsWith('image/') || imageFile.size > 5 * 1024 * 1024)) {
-      setMessage('Choose an image file smaller than 5 MB.')
+    if (imageFile && (!['image/jpeg','image/png','image/webp','image/gif'].includes(imageFile.type) || imageFile.size > 5 * 1024 * 1024)) {
+      setMessage('Choose a JPG, PNG, WebP or GIF image smaller than 5 MB.')
       return
     }
 
@@ -220,7 +220,7 @@ export default function MenuManager({ cafes }: { cafes: Cafe[] }) {
           <div style={{fontSize:12,color:'#047857',fontWeight:700}}>
             Estimated profit per item: {sellingPrice !== '' && costPrice !== '' && Number.isFinite(Number(sellingPrice)-Number(costPrice)) ? money(toPaise(String(Number(sellingPrice)-Number(costPrice)))) : 'Enter both prices'}
           </div>
-          <label style={labelStyle}>Item photo (upload manually)<input type="file" accept="image/*" onChange={event => setImageFile(event.target.files?.[0] || null)} style={{...fieldStyle,padding:8}} />{editingId && <small style={{display:'block',marginTop:4,color:'#78716c'}}>Leave empty to keep the current photo.</small>}</label>
+          <label style={labelStyle}>Item photo (upload manually)<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={event => setImageFile(event.target.files?.[0] || null)} style={{...fieldStyle,padding:8}} />{editingId && <small style={{display:'block',marginTop:4,color:'#78716c'}}>Leave empty to keep the current photo.</small>}</label>
           {previewUrl && <img src={previewUrl} alt="Menu item preview" style={{width:112,height:88,objectFit:'cover',borderRadius:9,border:'1px solid #e7e5e4'}} />}
           <label style={{display:'flex',gap:8,alignItems:'center',fontSize:12}}><input type="checkbox" checked={available} onChange={event => setAvailable(event.target.checked)} />Available for customers</label>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
