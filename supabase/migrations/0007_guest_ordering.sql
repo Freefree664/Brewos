@@ -83,7 +83,7 @@ declare
 begin
   if coalesce(length(p_token), 0) < 32 then raise exception 'Invalid table QR.'; end if;
   if coalesce(p_pin, '') !~ '^[0-9]{6} raise exception 'Enter the 6-digit PIN from café staff.'; end if;
-  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 30 then
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 30 then
     raise exception 'Your cart must contain 1 to 30 item lines.';
   end if;
 
