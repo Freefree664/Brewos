@@ -6,6 +6,7 @@ import MenuManager from './MenuManager'
 import OwnerOrders from './OwnerOrders'
 import OwnerPOS from './OwnerPOS'
 import OwnerPaymentSettings from './OwnerPaymentSettings'
+import OwnerOperations from './OwnerOperations'
 import { CustomerOrdering, TablePinIssuer } from './CustomerOrdering'
 
 const copy = {
@@ -480,7 +481,8 @@ function App() {
     {ownerOpen&&<div className="modal-backdrop" onClick={()=>setOwnerOpen(false)}><div className="modal" style={{maxWidth:680,width:'100%',maxHeight:'90vh',overflowY:'auto',textAlign:'left'}} onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setOwnerOpen(false)}><X/></button><span className="modal-icon"><LayoutDashboard/></span><h2 style={{textAlign:'center'}}>Restaurant owner workspace</h2><p style={{textAlign:'center'}}>Create your restaurant profile to begin setting up BrewOS.</p><div style={{display:'grid',gap:10,margin:'18px 0'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}}><h3 style={{fontSize:15,margin:0}}>Your restaurants</h3><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 12px'}} onClick={()=>void loadOwnerCafes()} disabled={ownerLoading}>Refresh</button></div>{ownerLoading&&<p role="status">Loading your restaurants…</p>}{ownerCafes.map(cafe=><article key={cafe.id} style={{border:'1px solid #e7e5e4',borderRadius:12,padding:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><b>{cafe.name}</b><span style={{fontSize:11,color:cafe.status==='approved'?'#047857':'#a16207',fontWeight:700,textTransform:'capitalize'}}>{cafe.status}</span></div><small style={{color:'#78716c'}}>brewos.app/{cafe.slug}</small></article>)}{!ownerLoading&&ownerCafes.length===0&&<p style={{fontSize:12}}>You haven't added a restaurant yet. Use the form below to create your first one.</p>}</div><MenuManager cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
 <OwnerOrders cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
 <OwnerPOS cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
-<OwnerPaymentSettings cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} /><div style={{borderTop:'1px solid #eee9df',paddingTop:18,marginTop:18}}>
+<OwnerPaymentSettings cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
+ <OwnerOperations cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} /><div style={{borderTop:'1px solid #eee9df',paddingTop:18,marginTop:18}}>
 <h3 style={{fontSize:16,margin:'0 0 12px'}}>Tables & QR setup</h3>
 <p style={{fontSize:12,color:'#78716c'}}>Create tables and activate or end a table session. Customers see the active session code automatically after scanning the table QR.</p>
 <label style={{fontSize:12}}>Restaurant
