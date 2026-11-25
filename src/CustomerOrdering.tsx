@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
+import { QRCodeSVG } from 'qrcode.react'
 import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed, CheckCircle2, Clock3 } from 'lucide-react'
 
 type MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}
@@ -10,6 +11,8 @@ const progress=[{key:'pending',label:'Order placed',hint:'Your order has reached
 export function CustomerOrdering({token,items,initialPin=''}:Props){
  const [cart,setCart]=useState<Record<string,number>>({}),[notes,setNotes]=useState('')
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[orderId,setOrderId]=useState(''),[orderNumber,setOrderNumber]=useState<number|null>(null),[orderStatus,setOrderStatus]=useState('pending')
+ const [orderBill,setOrderBill]=useState<{subtotal_paise:number;discount_paise:number;tax_paise:number;total_paise:number;restaurant_name:string;upi_id:string|null;items:Array<{name:string;quantity:number;unit_price_paise:number;line_total_paise:number}>}|null>(null)
+ const [paymentMode,setPaymentMode]=useState<'upi'|'cash'>('upi')
  const [category,setCategory]=useState('All'),[search,setSearch]=useState('')
  const cartItems=useMemo(()=>items.filter(x=>(cart[x.id]||0)>0),[items,cart])
  const categories=useMemo(()=>['All',...Array.from(new Set(items.map(x=>x.category)))],[items])
@@ -24,9 +27,10 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
   const refresh=async()=>{
    const {data,error}=await client.rpc('get_guest_order_status',{p_token:token,p_order_id:orderId})
    if(!active||error||!data)return
-   const result=data as {status?:string;order_number?:number}
+   const result=data as {status?:string;order_number?:number;subtotal_paise?:number;discount_paise?:number;tax_paise?:number;total_paise?:number;restaurant_name?:string;upi_id?:string|null;items?:Array<{name:string;quantity:number;unit_price_paise:number;line_total_paise:number}>}
    if(result.status)setOrderStatus(result.status)
    if(typeof result.order_number==='number')setOrderNumber(result.order_number)
+   if(typeof result.total_paise==='number')setOrderBill({subtotal_paise:result.subtotal_paise||0,discount_paise:result.discount_paise||0,tax_paise:result.tax_paise||0,total_paise:result.total_paise,restaurant_name:result.restaurant_name||'Restaurant',upi_id:result.upi_id||null,items:result.items||[]})
   }
   void refresh()
   const timer=window.setInterval(()=>void refresh(),7000)
@@ -56,6 +60,7 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
    <h2>{cancelled?'Order cancelled':'Your order is on its way!'}</h2>
    <p>Order {orderNumber?('#'+orderNumber):('#'+orderId.slice(0,8))} · Status updates automatically</p>
    {cancelled?<div className="guest-status-current">The café has cancelled this order. Please speak to the café team.</div>:<div className="guest-status-timeline">{progress.map((step,index)=><div className={'guest-status-step '+(index<currentIndex?'done':index===currentIndex?'current':'')} key={step.key}><span className="guest-status-dot">{index<currentIndex?<CheckCircle2 size={15}/>:index===currentIndex?<Clock3 size={15}/>:null}</span><div><b>{step.label}</b>{index===currentIndex&&<small>{step.hint}</small>}</div></div>)}</div>}
+   {orderStatus==='completed'&&orderBill&&<div style={{marginTop:18,padding:16,border:'1px solid #a7f3d0',borderRadius:14,background:'#fff',color:'#292524',textAlign:'left'}}><b style={{fontSize:16}}>Your digital bill</b><p style={{fontSize:12,color:'#78716c',margin:'4px 0 12px'}}>{orderBill.restaurant_name} · Bill #{orderNumber||orderId.slice(0,8)}</p><div style={{display:'grid',gap:7}}>{orderBill.items.map((item,index)=><div key={index} style={{display:'flex',justifyContent:'space-between',gap:10,fontSize:12}}><span>{item.name} × {item.quantity}</span><b>{rupees(item.line_total_paise)}</b></div>)}</div><div style={{borderTop:'1px solid #e7e5e4',marginTop:10,paddingTop:10,display:'grid',gap:5,fontSize:12}}><div style={{display:'flex',justifyContent:'space-between'}}><span>Subtotal</span><b>{rupees(orderBill.subtotal_paise)}</b></div>{orderBill.discount_paise>0&&<div style={{display:'flex',justifyContent:'space-between'}}><span>Discount</span><b>−{rupees(orderBill.discount_paise)}</b></div>}<div style={{display:'flex',justifyContent:'space-between',fontSize:15}}><b>Total to pay</b><b>{rupees(orderBill.total_paise)}</b></div></div><label style={{display:'grid',gap:5,fontSize:12,marginTop:13}}>Choose payment mode<select value={paymentMode} onChange={e=>setPaymentMode(e.target.value as 'upi'|'cash')} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8,background:'#fff'}}><option value="upi">UPI · Scan QR</option><option value="cash">Cash · Pay at counter</option></select></label>{paymentMode==='upi'&&orderBill.upi_id?<div style={{display:'grid',justifyItems:'center',gap:8,marginTop:12,padding:12,background:'#f0fdf4',borderRadius:12}}><b>Scan to pay {rupees(orderBill.total_paise)}</b><QRCodeSVG value={'upi://pay?pa='+encodeURIComponent(orderBill.upi_id)+'&pn='+encodeURIComponent(orderBill.restaurant_name)+'&am='+(orderBill.total_paise/100).toFixed(2)+'&cu=INR&tn='+encodeURIComponent('Order '+(orderNumber||''))} size={190}/><small>UPI ID: {orderBill.upi_id}</small></div>:paymentMode==='upi'?<p style={{fontSize:12,color:'#b45309',marginTop:10}}>This restaurant has not added its UPI ID yet. Please pay at the counter.</p>:<p style={{fontSize:12,color:'#57534e',marginTop:10}}>Please pay cash at the counter. The restaurant team will confirm your payment.</p>}<p style={{fontSize:10,color:'#78716c',marginBottom:0}}>Keep this bill for your records. Your payment is not confirmed until the restaurant verifies it.</p></div>}
    <p className="guest-tracking-footnote">Keep this page open to see the latest updates. It refreshes automatically.</p>
   </section>
  }
