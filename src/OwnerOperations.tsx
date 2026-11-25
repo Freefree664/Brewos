@@ -38,6 +38,8 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const [message,setMessage]=useState('')
  const [staffName,setStaffName]=useState('')
  const [staffPhone,setStaffPhone]=useState('')
+ const [staffEmail,setStaffEmail]=useState('')
+ const [staffInviteCode,setStaffInviteCode]=useState('')
  const [staffRole,setStaffRole]=useState('waiter')
  const [staffBranch,setStaffBranch]=useState('')
  const [busy,setBusy]=useState(false)
@@ -121,12 +123,16 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
 
  async function addStaff(e:React.FormEvent){
   e.preventDefault()
-  if(!supabase||!cafeId||!staffName.trim())return
+  if(!supabase||!cafeId||!staffName.trim()||!staffEmail.trim())return
   setBusy(true);setMessage('')
-  const {error}=await supabase.from('staff_members').insert({cafe_id:cafeId,branch_id:staffBranch||branchId,full_name:staffName.trim(),phone:staffPhone.trim()||null,role:staffRole})
+  const {data:created,error}=await supabase.from('staff_members').insert({cafe_id:cafeId,branch_id:staffBranch||branchId,full_name:staffName.trim(),phone:staffPhone.trim()||null,role:staffRole}).select('id').single()
+  if(error||!created){setBusy(false);setMessage(error?.message||'Could not create the staff profile.');return}
+  const bytes=new Uint8Array(32);window.crypto.getRandomValues(bytes)
+  const token=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('')
+  const {error:inviteError}=await supabase.rpc('create_staff_invite',{p_staff_id:created.id,p_email:staffEmail.trim(),p_token:token})
   setBusy(false)
-  if(error){setMessage(error.message);return}
-  setStaffName('');setStaffPhone('');setMessage('Staff member added.');await refresh()
+  if(inviteError){setMessage('Staff profile created, but invitation failed: '+inviteError.message);await refresh();return}
+  setStaffInviteCode(token);setStaffName('');setStaffPhone('');setStaffEmail('');setMessage('Staff profile created. Share this one-time invitation code with the staff member; it expires in 7 days.');await refresh()
  }
  async function toggleStaff(person:Staff){
   if(!supabase)return
@@ -251,10 +257,12 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    <form onSubmit={addStaff} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:9,padding:13,background:'#f8faf9',borderRadius:12}}>
     <input required value={staffName} onChange={e=>setStaffName(e.target.value)} maxLength={100} placeholder="Staff full name" style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}/>
     <input value={staffPhone} onChange={e=>setStaffPhone(e.target.value)} maxLength={20} placeholder="Phone (optional)" style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}/>
+    <input required type="email" value={staffEmail} onChange={e=>setStaffEmail(e.target.value)} maxLength={254} placeholder="Staff login email" style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}/>
     <select value={staffRole} onChange={e=>setStaffRole(e.target.value)} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}>{roleNames.map(r=><option key={r} value={r}>{r[0].toUpperCase()+r.slice(1)}</option>)}</select>
     <select value={staffBranch||branchId} onChange={e=>setStaffBranch(e.target.value)} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}>{branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
-    <button className="btn" disabled={busy}>Add staff member</button>
+    <button className="btn" disabled={busy||!staffEmail.trim()}>Add staff & create invite</button>
    </form>
+   {staffInviteCode&&<div style={{marginTop:10,padding:13,border:'1px solid #fbbf24',background:'#fffbeb',borderRadius:11}}><b style={{fontSize:12}}>One-time staff invitation code</b><p style={{fontSize:11,color:'#78716c'}}>Send this code only to the staff member whose email you entered. They must create or sign in to a BrewOS account with that same email. The code expires after 7 days and can be used once.</p><code style={{display:'block',overflowWrap:'anywhere',fontSize:12,padding:10,background:'#fff',borderRadius:8}}>{staffInviteCode}</code><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8}} onClick={()=>void navigator.clipboard?.writeText(staffInviteCode)}>Copy invitation code</button><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8,marginLeft:8}} onClick={()=>setStaffInviteCode('')}>Hide code</button></div>}
    <div style={{display:'grid',gap:8,marginTop:12}}>{staff.map(person=><article key={person.id} style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',padding:11,border:'1px solid #e7e5e4',borderRadius:10}}>
     <div style={{flex:1,minWidth:130}}><b style={{fontSize:13}}>{person.full_name}</b><div style={{fontSize:10,color:'#78716c'}}>{person.role} · {person.phone||'No phone'} · {person.active?'Active':'Inactive'}</div></div>
     <button type="button" className="outline-btn" style={{width:'auto',padding:'7px 10px'}} disabled={busy||!person.active} onClick={()=>void attendance(person,'in')}>Check in</button>
