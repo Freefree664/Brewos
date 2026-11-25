@@ -183,9 +183,9 @@ function App() {
   if (qrTokenFromUrl) {
     return <div className="guest-page-shell">
       <main className="guest-page-card">
-        <div style={{width:52,height:52,margin:'0 auto 16px',borderRadius:16,display:'grid',placeItems:'center',background:'#ecfdf5',color:'#047857'}}><Coffee size={25}/></div>
-        <div style={{fontSize:12,letterSpacing:2,fontWeight:800,color:'#78716c'}}>BREWOS · TABLE CHECK-IN</div>
-        <h1 style={{fontSize:28,margin:'10px 0 8px',color:'#292524'}}>Welcome</h1>
+        <div className="guest-brand-mark"><Coffee size={25}/></div>
+        <div className="guest-brand-name">BREWOS <span>TABLE SERVICE</span></div>
+        <div className="guest-welcome-banner"><div className="guest-welcome-copy"><span>GOOD FOOD. GOOD MOMENTS.</span><h1>Welcome to your table</h1><p>Explore the menu and order your favourites, freshly prepared.</p></div><div className="guest-welcome-art"><UtensilsCrossed size={42}/><Sparkles size={19}/></div></div>
         {qrTableLoading && <p role="status" style={{color:'#78716c'}}>Checking your table…</p>}
         {qrTableError && <p role="alert" style={{color:'#b91c1c',lineHeight:1.6}}>{qrTableError}</p>}
         {qrTableInfo && <>
