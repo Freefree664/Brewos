@@ -76,7 +76,6 @@ function App() {
   const [tableBusy,setTableBusy] = useState(false)
   const [tableMessage,setTableMessage] = useState('')
   const [newTableToken,setNewTableToken] = useState('')
-  const [newTableId,setNewTableId] = useState('')
   const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string;active_pin?:string|null} | null>(null)
   const [qrTableLoading,setQrTableLoading] = useState(false)
   const [qrTableError,setQrTableError] = useState('')
@@ -309,7 +308,6 @@ function App() {
       return
     }
     setNewTableToken(created.qr_token)
-    setNewTableId(created.id)
     setTableMessage(created.table_name + ' created. Save the one-time token securely; it cannot be retrieved again.')
     setTableName('Table ' + (diningTables.length + 2))
     await loadTableSetup(tableCafeId)
