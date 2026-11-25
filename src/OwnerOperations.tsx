@@ -154,7 +154,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  }
  function exportAnalytics(){
   const rows=[['Order number','Status','Order type','Created at','Total rupees'],...rangeOrders.map(o=>[String(o.order_number),o.status,o.order_type,new Date(o.created_at).toISOString(),(o.total_paise/100).toFixed(2)])]
-  const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(',')).join('\\n')
+  const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(',')).join('\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='brewos-analytics.csv';link.click();URL.revokeObjectURL(url)
  }
  async function redeem(){
@@ -179,8 +179,8 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   </div>
   {message&&<p role="status" style={{padding:10,borderRadius:9,background:'#f0fdf4',color:'#166534',fontSize:12,overflowWrap:'anywhere'}}>{message}</p>}
   {!cafeId||!branchId?<p style={{fontSize:12,color:'#78716c',padding:18}}>Select an approved restaurant and branch to load operations.</p>:<>
-  {tab==='kitchen'&&<div style={{marginTop:18}}>
-   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Kitchen display · {kitchenOrders.length} active</h3><span style={{fontSize:11,color:'#78716c'}}>Auto-refreshes every 12 seconds</span></div>
+  {tab==='kitchen'&&<div id='brewos-kitchen-display' style={{marginTop:18,background:'#fff',padding:4}}>
+   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Kitchen display · {kitchenOrders.length} active</h3><div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:11,color:'#78716c'}}>Auto-refreshes every 12 seconds</span><button type='button' className='outline-btn' style={{width:'auto',padding:'7px 9px'}} onClick={()=>{const el=document.getElementById('brewos-kitchen-display');if(el?.requestFullscreen)void el.requestFullscreen().catch(()=>setMessage('Full-screen mode was blocked by this browser.'))}}>Full screen</button></div></div>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:12,marginTop:12}}>
     {kitchenOrders.map(order=>{const age=Math.max(0,Math.floor((Date.now()-new Date(order.created_at).getTime())/60000));return <article key={order.id} style={{border:'1px solid #e7e5e4',borderRadius:14,padding:14,borderTop:'4px solid '+(age>=15?'#dc2626':order.status==='ready'?'#059669':'#d97706')}}>
      <div style={{display:'flex',justifyContent:'space-between',gap:8}}><b style={{fontSize:16}}>Order #{order.order_number}</b><span style={{fontSize:10,fontWeight:800,color:age>=15?'#b91c1c':'#78716c'}}><Clock3 size={12} style={{display:'inline',verticalAlign:'middle'}}/> {age} min</span></div>
