@@ -9,6 +9,12 @@ export default function OwnerPaymentSettings({ cafes }: { cafes: Cafe[] }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
 
+  // The owner workspace loads cafés asynchronously. Select the first café once
+  // they arrive so the save control is not left disabled with an empty ID.
+  useEffect(() => {
+    if (!cafeId && cafes.length > 0) setCafeId(cafes[0].id)
+  }, [cafes, cafeId])
+
   useEffect(() => {
     if (!cafeId || !supabase) {
       setUpiId('')
