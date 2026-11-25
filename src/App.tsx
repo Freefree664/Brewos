@@ -30,7 +30,7 @@ const copy = {
   }
 }
 
-const plans = [{name:'3 Months',price:'₹699',term:'3 महीने'}, {name:'6 Months',price:'₹999',term:'6 महीने',popular:true}, {name:'9 Months',price:'₹1,499',term:'9 महीने'}, {name:'1 Year',price:'₹1,999',term:'1 साल'}, {name:'Lifetime',price:'₹4,999',term:'एक बार भुगतान'}]
+const plans = [{name:'1 Month',price:'₹899',term:'1 महीना'}, {name:'3 Months',price:'₹1,299',term:'3 महीने'}, {name:'6 Months',price:'₹1,999',term:'6 महीने',popular:true}, {name:'9 Months',price:'₹2,999',term:'9 महीने'}, {name:'1 Year',price:'₹4,999',term:'1 साल'}, {name:'2 Years',price:'₹6,999',term:'2 साल'}]
 const features = [
   {icon:QrCode,title:'QR & guest ordering',desc:'Available now: table QR check-in, digital menu, cart and staff-PIN order submission.'},
   {icon:LayoutDashboard,title:'Owner menu tools',desc:'Available now: manage restaurants, branches, menu items, photos, availability and private item-cost estimates.'},
@@ -224,7 +224,7 @@ function App() {
   const subscriptionExpiry: Date | null = subscription?.expires_at ? new Date(subscription.expires_at) : null
   const subscriptionExpired: boolean = Boolean(subscription && (subscription.status !== 'active' || (subscriptionExpiry !== null && subscriptionExpiry.getTime() <= Date.now())))
   const subscriptionRemaining: number | null = subscriptionExpiry !== null ? Math.max(0, Math.ceil((subscriptionExpiry.getTime() - Date.now()) / 86400000)) : null
-  const subscriptionPlanLabel: string = subscription ? (({'3_months':'3 Months','6_months':'6 Months','9_months':'9 Months','1_year':'1 Year',lifetime:'Lifetime'} as Record<string,string>)[subscription.plan_code] || subscription.plan_code) : ''
+  const subscriptionPlanLabel: string = subscription ? (({'1_month':'1 Month','3_months':'3 Months','6_months':'6 Months','9_months':'9 Months','1_year':'1 Year','2_years':'2 Years',lifetime:'Lifetime'} as Record<string,string>)[subscription.plan_code] || subscription.plan_code) : ''
   async function loadSubscription() {
     if (!supabase) return
     setSubscriptionBusy(true)
