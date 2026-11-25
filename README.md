@@ -51,6 +51,7 @@ For a new Supabase project, review and apply migrations in numeric order:
 14. `0014_pos_discounts_and_payments.sql`
 15. `0015_table_sessions_and_guest_order_tracking.sql`
 16. `0016_secure_session_codes_disable_legacy_pin.sql`
+17. `0017_subscription_plan_pricing_update.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
 
