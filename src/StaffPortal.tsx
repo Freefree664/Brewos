@@ -91,7 +91,7 @@ export default function StaffPortal({staff,onSignOut}:{staff:StaffProfile;onSign
  return <main style={{minHeight:'100vh',background:'#f8f7f2',padding:'22px 14px',color:'#292524'}}>
   <section style={{maxWidth:980,margin:'0 auto',background:'#fff',border:'1px solid #e7e5e4',borderRadius:18,padding:18}}>
    <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-    <div><small style={{fontWeight:800,letterSpacing:1.3,color:'#047857'}}>BREWOS STAFF WORKSPACE</small><h1 style={{fontSize:24,margin:'6px 0'}}>Welcome, {staff.full_name}</h1><p style={{fontSize:12,color:'#78716c',margin:0,textTransform:'capitalize'}}>{staff.role} · Your access is limited to your assigned role and branch.</p></div>
+    <div><small style={{fontWeight:800,letterSpacing:1.3,color:'#047857'}}>Rivantoq STAFF WORKSPACE</small><h1 style={{fontSize:24,margin:'6px 0'}}>Welcome, {staff.full_name}</h1><p style={{fontSize:12,color:'#78716c',margin:0,textTransform:'capitalize'}}>{staff.role} · Your access is limited to your assigned role and branch.</p></div>
     <div style={{display:'flex',gap:8}}><button type="button" className="outline-btn" style={{width:'auto',padding:'9px 12px'}} onClick={()=>void refresh()} disabled={loading}><RefreshCw size={14}/>{loading?'Loading':'Refresh'}</button><button type="button" className="outline-btn" style={{width:'auto',padding:'9px 12px'}} onClick={onSignOut}><LogOut size={14}/>Sign out</button></div>
    </header>
    {message&&<p role="status" style={{padding:10,background:'#f0fdf4',borderRadius:9,fontSize:12,overflowWrap:'anywhere'}}>{message}</p>}
