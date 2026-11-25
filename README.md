@@ -52,10 +52,12 @@ For a new Supabase project, review and apply migrations in numeric order:
 15. `0015_table_sessions_and_guest_order_tracking.sql`
 16. `0016_secure_session_codes_disable_legacy_pin.sql`
 17. `0017_subscription_plan_pricing_update.sql`
+18. `0018_restaurant_upi_and_pos_customer_contact.sql`
+19. `0019_guest_digital_bills_and_upi_qr.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
 
-The POS screen supports item search, quantity changes, dine-in/takeaway/delivery, server-validated discounts, manual cash/card/UPI payment records (including split tenders), and a printable receipt view. Payment records are ledger entries only; BrewOS does not collect or verify money through a payment gateway. Tax configuration, refunds and payment reconciliation remain future work.
+The POS screen supports item search, quantity changes, dine-in/takeaway/delivery, server-validated discounts, manual cash/card/UPI payment records (including split tenders), UPI QR generation from each restaurant's saved UPI ID, customer WhatsApp bill sharing, and printable receipts. Bills and payment records are stored in the database. UPI QR generation does not verify or collect money: staff must independently verify a payment before recording it as paid. Tax configuration, refunds and payment reconciliation remain future work.
 
 The first Super Admin must be added to `public.super_admins` by a trusted project administrator using the Supabase SQL Editor. Do not expose an administrative key in the app.
 
@@ -126,3 +128,12 @@ Emerald `#059669`, cream `#F5EBD8`, charcoal `#292524`.
 - Customers can place multiple orders during the same active table session without requesting a new code for every order.
 - After placing an order, the guest page polls a QR-token-scoped status RPC and shows the order timeline through confirmation, preparation, ready, served and completion.
 - The legacy one-time PIN issuer is disabled. The public session code is intentionally visible only to a visitor holding that table's unguessable QR token; anyone with a copy of the table QR can order while the session is open.
+
+
+## Restaurant UPI and customer bills
+
+- Each restaurant owner can save a restaurant-specific UPI ID in the owner workspace.
+- POS bill creation includes a payment-mode choice (cash, UPI or card). UPI bills display a QR for the exact outstanding bill amount; cash bills do not display a QR.
+- POS bills are saved as orders and item snapshots in the owner's BrewOS order records. An optional customer phone number enables a prefilled WhatsApp bill message; the owner must review and send it.
+- For table QR orders, the customer sees an itemized digital bill and can choose UPI QR or cash at the counter after the order is marked completed.
+- UPI QR codes only initiate a payment in the customer's UPI app. BrewOS does not receive payment confirmation automatically; restaurant staff must verify the transaction and record the payment.
