@@ -1,0 +1,207 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Minus, Plus, RefreshCw, Search, ShoppingCart, Trash2, ReceiptText } from 'lucide-react'
+import { supabase } from './lib/supabase'
+
+type Cafe = { id: string; name: string }
+type Branch = { id: string; name: string }
+type MenuItem = {
+  id: string
+  name: string
+  description: string | null
+  price_paise: number
+  category_id: string | null
+  branch_id: string | null
+}
+type CartLine = { item: MenuItem; quantity: number }
+type CreatedBill = { order_number: number; total_paise: number }
+
+const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
+  const [cafeId, setCafeId] = useState('')
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [branchId, setBranchId] = useState('')
+  const [items, setItems] = useState<MenuItem[]>([])
+  const [cart, setCart] = useState<CartLine[]>([])
+  const [search, setSearch] = useState('')
+  const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway')
+  const [customerName, setCustomerName] = useState('')
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [bill, setBill] = useState<CreatedBill | null>(null)
+
+  useEffect(() => {
+    if (!cafeId && cafes.length) setCafeId(cafes[0].id)
+  }, [cafes, cafeId])
+
+  useEffect(() => {
+    if (!cafeId || !supabase) {
+      setBranches([])
+      setBranchId('')
+      setItems([])
+      setCart([])
+      return
+    }
+    let active = true
+    void (async () => {
+      const { data, error } = await supabase!.from('branches')
+        .select('id,name').eq('cafe_id', cafeId).eq('active', true).order('created_at')
+      if (!active) return
+      if (error) { setMessage(error.message); return }
+      const rows = (data || []) as Branch[]
+      setBranches(rows)
+      setBranchId(rows[0]?.id || '')
+      setCart([])
+    })()
+    return () => { active = false }
+  }, [cafeId])
+
+  useEffect(() => {
+    if (!supabase || !cafeId || !branchId) {
+      setItems([])
+      return
+    }
+    void loadMenu()
+  }, [cafeId, branchId])
+
+  async function loadMenu() {
+    if (!supabase || !cafeId || !branchId) return
+    setLoading(true)
+    setMessage('')
+    const { data, error } = await supabase.from('menu_items')
+      .select('id,name,description,price_paise,category_id,branch_id')
+      .eq('cafe_id', cafeId).eq('is_available', true)
+      .or(`branch_id.is.null,branch_id.eq.${branchId}`)
+      .order('sort_order').order('name')
+    setLoading(false)
+    if (error) { setMessage(error.message); return }
+    setItems((data || []) as MenuItem[])
+  }
+
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return term ? items.filter(item => item.name.toLowerCase().includes(term) || (item.description || '').toLowerCase().includes(term)) : items
+  }, [items, search])
+  const subtotal = cart.reduce((sum, line) => sum + line.item.price_paise * line.quantity, 0)
+  const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0)
+
+  function addItem(item: MenuItem) {
+    setBill(null)
+    setCart(current => {
+      const existing = current.find(line => line.item.id === item.id)
+      if (existing) return current.map(line => line.item.id === item.id ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line)
+      return [...current, { item, quantity: 1 }]
+    })
+  }
+  function changeQuantity(itemId: string, delta: number) {
+    setBill(null)
+    setCart(current => current.flatMap(line => {
+      if (line.item.id !== itemId) return [line]
+      const quantity = line.quantity + delta
+      return quantity > 0 ? [{ ...line, quantity }] : []
+    }))
+  }
+
+  async function createBill() {
+    if (!supabase || !cafeId || !branchId || !cart.length || saving) return
+    setSaving(true)
+    setMessage('')
+    setBill(null)
+    const { data, error } = await supabase.rpc('create_pos_order', {
+      p_cafe_id: cafeId,
+      p_branch_id: branchId,
+      p_order_type: orderType,
+      p_customer_name: customerName.trim() || null,
+      p_notes: notes.trim() || null,
+      p_items: cart.map(line => ({ menu_item_id: line.item.id, quantity: line.quantity }))
+    })
+    setSaving(false)
+    if (error) { setMessage(error.message); return }
+    const created = Array.isArray(data) ? data[0] : data
+    if (!created?.order_number) { setMessage('The bill was not confirmed. Refresh incoming orders before retrying.'); return }
+    setBill({ order_number: Number(created.order_number), total_paise: Number(created.total_paise) })
+    setCart([])
+    setCustomerName('')
+    setNotes('')
+  }
+
+  return <section style={{ borderTop: '1px solid #eee9df', paddingTop: 20, marginTop: 20 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div><h3 style={{ fontSize: 16, margin: 0 }}>POS · Counter billing</h3><p style={{ fontSize: 12, color: '#78716c', margin: '5px 0 12px' }}>Build a cashier order from your live menu. Saved bills appear in Incoming orders.</p></div>
+      <button type="button" className="outline-btn" style={{ width: 'auto', padding: '8px 12px' }} onClick={() => void loadMenu()} disabled={loading || !branchId}><RefreshCw size={14}/> Refresh menu</button>
+    </div>
+    {!cafes.length && <p style={{ fontSize: 12, color: '#78716c' }}>An approved restaurant is required to use POS.</p>}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
+      <label style={{ display: 'grid', gap: 5, fontSize: 12 }}>Restaurant
+        <select value={cafeId} onChange={e => { setCafeId(e.target.value); setCart([]); setBill(null) }} style={{ width: '100%', padding: 11, border: '1px solid #d6d3d1', borderRadius: 9, background: '#fff' }}>
+          {cafes.map(cafe => <option key={cafe.id} value={cafe.id}>{cafe.name}</option>)}
+        </select>
+      </label>
+      <label style={{ display: 'grid', gap: 5, fontSize: 12 }}>Branch
+        <select value={branchId} onChange={e => { setBranchId(e.target.value); setCart([]); setBill(null) }} style={{ width: '100%', padding: 11, border: '1px solid #d6d3d1', borderRadius: 9, background: '#fff' }}>
+          {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+        </select>
+      </label>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: 16, marginTop: 15, alignItems: 'start' }}>
+      <div>
+        <label style={{ position: 'relative', display: 'block', marginBottom: 10 }}>
+          <Search size={15} style={{ position: 'absolute', left: 11, top: 12, color: '#78716c' }}/>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search menu items…" style={{ width: '100%', padding: '10px 10px 10px 34px', border: '1px solid #d6d3d1', borderRadius: 9 }}/>
+        </label>
+        {loading && <p role="status" style={{ fontSize: 12, color: '#78716c' }}>Loading menu…</p>}
+        {!loading && branchId && !filteredItems.length && <p style={{ fontSize: 12, color: '#78716c' }}>No available menu items found for this branch.</p>}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(135px,1fr))', gap: 8 }}>
+          {filteredItems.map(item => <button type="button" key={item.id} onClick={() => addItem(item)} style={{ textAlign: 'left', padding: 12, border: '1px solid #e7e5e4', borderRadius: 11, background: '#fff', minHeight: 76 }}>
+            <b style={{ display: 'block', fontSize: 12 }}>{item.name}</b>
+            <span style={{ display: 'block', color: '#047857', fontWeight: 800, fontSize: 12, marginTop: 7 }}>{money(item.price_paise)}</span>
+            <span style={{ display: 'block', color: '#78716c', fontSize: 10, marginTop: 5 }}>＋ Add to bill</span>
+          </button>)}
+        </div>
+      </div>
+      <div style={{ border: '1px solid #e7e5e4', borderRadius: 13, padding: 13, background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <b style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 7 }}><ShoppingCart size={16}/> Current bill</b>
+          <span style={{ fontSize: 11, color: '#78716c' }}>{itemCount} items</span>
+        </div>
+        {!cart.length && <p style={{ fontSize: 12, color: '#a8a29e', padding: '15px 0' }}>Choose items from the menu to start a bill.</p>}
+        <div style={{ display: 'grid', gap: 9, marginTop: 10 }}>
+          {cart.map(line => <div key={line.item.id} style={{ borderBottom: '1px solid #f0ece4', paddingBottom: 9 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}><b>{line.item.name}</b><b>{money(line.item.price_paise * line.quantity)}</b></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 7 }}>
+              <button type="button" aria-label={`Decrease ${line.item.name}`} onClick={() => changeQuantity(line.item.id, -1)} style={{ border: '1px solid #d6d3d1', background: '#fff', borderRadius: 7, width: 28, height: 28 }}><Minus size={13}/></button>
+              <span style={{ fontSize: 12, minWidth: 18, textAlign: 'center' }}>{line.quantity}</span>
+              <button type="button" aria-label={`Increase ${line.item.name}`} onClick={() => changeQuantity(line.item.id, 1)} style={{ border: '1px solid #d6d3d1', background: '#fff', borderRadius: 7, width: 28, height: 28 }}><Plus size={13}/></button>
+              <button type="button" aria-label={`Remove ${line.item.name}`} onClick={() => changeQuantity(line.item.id, -line.quantity)} style={{ marginLeft: 'auto', border: 0, background: 'transparent', color: '#b91c1c' }}><Trash2 size={14}/></button>
+            </div>
+          </div>)}
+        </div>
+        <label style={{ display: 'grid', gap: 5, fontSize: 11, marginTop: 12 }}>Order type
+          <select value={orderType} onChange={e => setOrderType(e.target.value as typeof orderType)} style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, background: '#fff' }}>
+            <option value="takeaway">Takeaway</option><option value="dine_in">Dine in</option><option value="delivery">Delivery</option>
+          </select>
+        </label>
+        <label style={{ display: 'grid', gap: 5, fontSize: 11, marginTop: 9 }}>Customer name (optional)
+          <input value={customerName} onChange={e => setCustomerName(e.target.value)} maxLength={100} placeholder="Customer name" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
+        </label>
+        <label style={{ display: 'grid', gap: 5, fontSize: 11, marginTop: 9 }}>Order note (optional)
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} rows={2} placeholder="Special instructions" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, resize: 'vertical' }}/>
+        </label>
+        <div style={{ borderTop: '1px solid #eee9df', marginTop: 13, paddingTop: 12, display: 'grid', gap: 7 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>Subtotal</span><b>{money(subtotal)}</b></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#78716c' }}><span>Tax</span><span>Not configured</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><b>Total</b><b>{money(subtotal)}</b></div>
+        </div>
+        <button type="button" className="btn" disabled={!cart.length || saving || !branchId} onClick={() => void createBill()} style={{ width: '100%', justifyContent: 'center', marginTop: 13 }}>
+          <ReceiptText size={15}/>{saving ? 'Saving bill…' : 'Create bill & send to orders'}
+        </button>
+        <button type="button" className="outline-btn" disabled={!cart.length || saving} onClick={() => { setCart([]); setBill(null) }} style={{ width: '100%', marginTop: 8 }}>Clear bill</button>
+        <p style={{ fontSize: 10, lineHeight: 1.5, color: '#78716c', marginBottom: 0 }}>This records an order, not a payment. Cash/card/UPI collection and receipt printing are not connected yet.</p>
+      </div>
+    </div>
+    {bill && <div role="status" style={{ marginTop: 12, padding: 13, borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}><b>Bill #{bill.order_number} saved</b><p style={{ fontSize: 13, margin: '5px 0 0' }}>Total: {money(bill.total_paise)} · It is now available in Incoming orders.</p></div>}
+    {message && <p role="alert" style={{ fontSize: 12, color: '#b91c1c', overflowWrap: 'anywhere' }}>{message}</p>}
+  </section>
+}
