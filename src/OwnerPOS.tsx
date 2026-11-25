@@ -13,7 +13,7 @@ type MenuItem = {
   branch_id: string | null
 }
 type CartLine = { item: MenuItem; quantity: number }
-type CreatedBill = { order_number: number; total_paise: number }
+type CreatedBill = { order_id: string; order_number: number; subtotal_paise: number; discount_paise: number; total_paise: number }
 
 const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -27,6 +27,13 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway')
   const [customerName, setCustomerName] = useState('')
   const [notes, setNotes] = useState('')
+  const [discount, setDiscount] = useState('0')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash')
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentReference, setPaymentReference] = useState('')
+  const [paymentSaving, setPaymentSaving] = useState(false)
+  const [paidPaise, setPaidPaise] = useState(0)
+  const [duePaise, setDuePaise] = useState(0)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -86,6 +93,8 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   }, [items, search])
   const subtotal = cart.reduce((sum, line) => sum + line.item.price_paise * line.quantity, 0)
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0)
+  const discountPaise = Math.max(0, Math.round(Number(discount || 0) * 100))
+  const total = Math.max(0, subtotal - discountPaise)
 
   function addItem(item: MenuItem) {
     setBill(null)
@@ -109,22 +118,43 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
     setSaving(true)
     setMessage('')
     setBill(null)
-    const { data, error } = await supabase.rpc('create_pos_order', {
+    const { data, error } = await supabase.rpc('create_pos_order_v2', {
       p_cafe_id: cafeId,
       p_branch_id: branchId,
       p_order_type: orderType,
       p_customer_name: customerName.trim() || null,
       p_notes: notes.trim() || null,
-      p_items: cart.map(line => ({ menu_item_id: line.item.id, quantity: line.quantity }))
+      p_items: cart.map(line => ({ menu_item_id: line.item.id, quantity: line.quantity })),
+      p_discount_paise: discountPaise
     })
     setSaving(false)
     if (error) { setMessage(error.message); return }
     const created = Array.isArray(data) ? data[0] : data
     if (!created?.order_number) { setMessage('The bill was not confirmed. Refresh incoming orders before retrying.'); return }
-    setBill({ order_number: Number(created.order_number), total_paise: Number(created.total_paise) })
+    setBill({ order_id: created.order_id, order_number: Number(created.order_number), subtotal_paise: Number(created.subtotal_paise), discount_paise: Number(created.discount_paise), total_paise: Number(created.total_paise) })
+    setPaidPaise(0)
+    setDuePaise(Number(created.total_paise))
+    setPaymentAmount((Number(created.total_paise) / 100).toFixed(2))
     setCart([])
     setCustomerName('')
     setNotes('')
+    setDiscount('0')
+  }
+
+  async function recordPayment() {
+    if (!supabase || !bill || paymentSaving) return
+    const amount = Math.round(Number(paymentAmount) * 100)
+    if (!Number.isFinite(amount) || amount <= 0) { setMessage('Enter a valid payment amount.'); return }
+    setPaymentSaving(true)
+    setMessage('')
+    const { data, error } = await supabase.rpc('record_pos_payment', { p_order_id: bill.order_id, p_method: paymentMethod, p_amount_paise: amount, p_reference: paymentReference.trim() || null })
+    setPaymentSaving(false)
+    if (error) { setMessage(error.message); return }
+    const result = Array.isArray(data) ? data[0] : data
+    setPaidPaise(Number(result.paid_paise))
+    setDuePaise(Number(result.due_paise))
+    setPaymentAmount((Number(result.due_paise) / 100).toFixed(2))
+    setPaymentReference('')
   }
 
   return <section style={{ borderTop: '1px solid #eee9df', paddingTop: 20, marginTop: 20 }}>
@@ -191,8 +221,11 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         </label>
         <div style={{ borderTop: '1px solid #eee9df', marginTop: 13, paddingTop: 12, display: 'grid', gap: 7 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>Subtotal</span><b>{money(subtotal)}</b></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#78716c' }}><span>Tax</span><span>Not configured</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><b>Total</b><b>{money(subtotal)}</b></div>
+          <label style={{ display: 'grid', gap: 5, fontSize: 11 }}>Discount (₹)
+            <input type="number" min="0" max={(subtotal / 100).toFixed(2)} step="0.01" value={discount} onChange={e => setDiscount(e.target.value)} style={{ width: '100%', padding: 9, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>Discount</span><b>−{money(Math.min(discountPaise, subtotal))}</b></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><b>Total</b><b>{money(total)}</b></div>
         </div>
         <button type="button" className="btn" disabled={!cart.length || saving || !branchId} onClick={() => void createBill()} style={{ width: '100%', justifyContent: 'center', marginTop: 13 }}>
           <ReceiptText size={15}/>{saving ? 'Saving bill…' : 'Create bill & send to orders'}
@@ -201,7 +234,22 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <p style={{ fontSize: 10, lineHeight: 1.5, color: '#78716c', marginBottom: 0 }}>This records an order, not a payment. Cash/card/UPI collection and receipt printing are not connected yet.</p>
       </div>
     </div>
-    {bill && <div role="status" style={{ marginTop: 12, padding: 13, borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}><b>Bill #{bill.order_number} saved</b><p style={{ fontSize: 13, margin: '5px 0 0' }}>Total: {money(bill.total_paise)} · It is now available in Incoming orders.</p></div>}
+    {bill && <div style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
+      <b>Bill #{bill.order_number} saved</b>
+      <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · Total {money(bill.total_paise)}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Recorded payments</span><b>{money(paidPaise)}</b></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span>Balance due</span><b>{money(duePaise)}</b></div>
+      {duePaise > 0 && <div style={{ display: 'grid', gap: 8, marginTop: 12, color: '#292524' }}>
+        <b style={{ fontSize: 13 }}>Record payment (manual)</b>
+        <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)} style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, background: '#fff' }}><option value="cash">Cash</option><option value="card">Card</option><option value="upi">UPI</option></select>
+        <input type="number" min="0.01" max={(duePaise / 100).toFixed(2)} step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="Amount in ₹" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
+        <input value={paymentReference} onChange={e => setPaymentReference(e.target.value)} maxLength={100} placeholder="Optional transaction reference" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
+        <button type="button" className="btn" disabled={paymentSaving} onClick={() => void recordPayment()} style={{ justifyContent: 'center' }}>{paymentSaving ? 'Recording…' : 'Record payment'}</button>
+      </div>}
+      {duePaise === 0 && <p style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Paid in full</p>}
+      <button type="button" className="outline-btn" onClick={() => window.print()} style={{ width: '100%', marginTop: 10 }}>Print receipt</button>
+      <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Payment entries are records only. Verify receipts separately; BrewOS does not collect money or connect to a payment gateway.</p>
+    </div>}
     {message && <p role="alert" style={{ fontSize: 12, color: '#b91c1c', overflowWrap: 'anywhere' }}>{message}</p>}
   </section>
 }
