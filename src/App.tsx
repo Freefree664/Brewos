@@ -34,7 +34,7 @@ const copy = {
 
 const plans = [{name:'1 Month',price:'₹899',term:'1 महीना'}, {name:'3 Months',price:'₹1,299',term:'3 महीने'}, {name:'6 Months',price:'₹1,999',term:'6 महीने',popular:true}, {name:'9 Months',price:'₹2,999',term:'9 महीने'}, {name:'1 Year',price:'₹4,999',term:'1 साल'}, {name:'2 Years',price:'₹6,999',term:'2 साल'}]
 const features = [
-  {icon:QrCode,title:'QR & guest ordering',desc:'Available now: table QR check-in, digital menu, cart and staff-PIN order submission.'},
+  {icon:QrCode,title:'QR & guest ordering',desc:'Available now: table QR check-in, digital menu, cart and six-digit staff session code.'},
   {icon:LayoutDashboard,title:'Owner menu tools',desc:'Available now: manage restaurants, branches, menu items, photos, availability and private item-cost estimates.'},
   {icon:ShoppingBag,title:'Order management',desc:'Available now: review guest orders, update their status and receive browser alerts while the dashboard is open.'},
   {icon:ShieldCheck,title:'UPI subscriptions',desc:'Available now: scan a plan-specific UPI QR, submit the transaction reference and await administrator verification.'},
