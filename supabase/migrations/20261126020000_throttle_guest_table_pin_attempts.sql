@@ -77,7 +77,7 @@ create or replace function public.submit_guest_order(
   p_token text,
   p_pin text,
   p_items jsonb,
-  p_notes text
+  p_notes text default null
 )
 returns jsonb
 language plpgsql
