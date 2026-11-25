@@ -85,7 +85,6 @@ function App() {
   const [qrMenuError,setQrMenuError] = useState('')
   const guestUrlParams = new URLSearchParams(window.location.search)
   const qrTokenFromUrl = guestUrlParams.get('table') || ''
-  const guestPinFromUrl = (guestUrlParams.get('pin') || '').replace(/\D/g, '').slice(0, 6)
   const [cafeName,setCafeName] = useState('')
   const [cafeSlug,setCafeSlug] = useState('')
   const [cafeDescription,setCafeDescription] = useState('')
