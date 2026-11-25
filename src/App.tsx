@@ -184,7 +184,11 @@ function App() {
     let active = true
     const refreshSessionCode = async () => {
       const { data, error } = await supabase.rpc('get_public_table_info', { p_token: qrTokenFromUrl })
-      if (!active || error || !data) return
+      if (!active || error) return
+      if (!data) {
+        setQrTableInfo(current => current ? {...current, active_pin: null} : current)
+        return
+      }
       const latest = data as {active_pin?:string|null}
       setQrTableInfo(current => current ? {...current, active_pin: latest.active_pin || null} : current)
     }
