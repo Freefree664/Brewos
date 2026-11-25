@@ -234,7 +234,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <p style={{ fontSize: 10, lineHeight: 1.5, color: '#78716c', marginBottom: 0 }}>This records an order, not a payment. Cash/card/UPI collection and receipt printing are not connected yet.</p>
       </div>
     </div>
-    {bill && <div style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
+    {bill && <div className="pos-receipt" style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
       <b>Bill #{bill.order_number} saved</b>
       <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · Total {money(bill.total_paise)}</p>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Recorded payments</span><b>{money(paidPaise)}</b></div>
