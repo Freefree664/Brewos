@@ -9,6 +9,7 @@ type OrderItem = { id:string; item_name_snapshot:string; quantity:number }
 type Order = { id:string; order_number:number; status:string; order_type:string; total_paise:number; created_at:string; customer_name:string|null; customer_phone:string|null; table_id:string|null; order_items:OrderItem[] }
 type DiningTable = { id:string; table_name:string; assigned_waiter_id:string|null }
 type Loyalty = { id:string; customer_name:string; customer_phone:string; points_balance:number; total_orders:number; total_spend_paise:number }
+type Shift = { id:string; staff_id:string; starts_at:string; ends_at:string }
 
 const money=(paise:number)=>'₹'+(paise/100).toLocaleString('en-IN',{maximumFractionDigits:2})
 const roleNames=['waiter','kitchen','manager','cashier']
@@ -23,6 +24,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const [orders,setOrders]=useState<Order[]>([])
  const [tables,setTables]=useState<DiningTable[]>([])
  const [loyalty,setLoyalty]=useState<Loyalty[]>([])
+ const [shifts,setShifts]=useState<Shift[]>([])
  const [loading,setLoading]=useState(false)
  const [message,setMessage]=useState('')
  const [staffName,setStaffName]=useState('')
@@ -67,7 +69,8 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    supabase.from('staff_members').select('id,full_name,phone,role,active,branch_id').eq('cafe_id',cafeId).order('full_name'),
    supabase.from('orders').select('id,order_number,status,order_type,total_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
    supabase.from('dining_tables').select('id,table_name,assigned_waiter_id').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('created_at'),
-   supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250)
+   supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250),
+   supabase.from('staff_shifts').select('id,staff_id,starts_at,ends_at').eq('cafe_id',cafeId).eq('branch_id',branchId).gte('ends_at',new Date().toISOString()).order('starts_at').limit(30)
   ])
   setLoading(false)
   const err=results.find(x=>x.error)?.error
@@ -76,6 +79,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   setOrders((results[1].data||[]) as unknown as Order[])
   setTables((results[2].data||[]) as DiningTable[])
   setLoyalty((results[3].data||[]) as Loyalty[])
+  setShifts((results[4].data||[]) as Shift[])
  }
  const activeOrders=useMemo(()=>orders.filter(o=>!['completed','cancelled'].includes(o.status)),[orders])
  const kitchenOrders=useMemo(()=>activeOrders.filter(o=>['pending','accepted','preparing','ready'].includes(o.status)),[activeOrders])
@@ -133,6 +137,10 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    else{const result=await supabase.from('staff_attendance').update({check_out_at:new Date().toISOString()}).eq('id',data.id);setMessage(result.error?.message||person.full_name+' checked out.')}
   }
   setBusy(false)
+ }
+ function openKitchenFullScreen(){
+  const target=document.getElementById('brewos-kitchen-display')
+  if(target?.requestFullscreen)void target.requestFullscreen().catch(()=>setMessage('Full-screen mode was blocked by this browser.'))
  }
  async function setOrderStatus(order:Order,status:string){
   if(!supabase)return
@@ -219,7 +227,9 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
     <input required type="datetime-local" value={shiftEnd} onChange={e=>setShiftEnd(e.target.value)} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}/>
     <button className="btn" disabled={busy}>Save shift</button>
    </form>
-   <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Staff profiles, roles, shifts and attendance are managed here. Staff login accounts and per-user permission enforcement require separate invitations/authentication.</p>
+   <h4 style={{fontSize:14,marginTop:18}}>Upcoming shifts</h4>
+   <div style={{display:'grid',gap:7}}>{shifts.map(shift=>{const person=staff.find(s=>s.id===shift.staff_id);return <div key={shift.id} style={{display:'flex',justifyContent:'space-between',gap:8,padding:10,border:'1px solid #e7e5e4',borderRadius:9,fontSize:11}}><b>{person?.full_name||'Staff member'}</b><span>{new Date(shift.starts_at).toLocaleString()} – {new Date(shift.ends_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>})}{!shifts.length&&<p style={{fontSize:11,color:'#78716c'}}>No upcoming shifts scheduled.</p>}</div>
+   <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Staff profiles, role labels, shifts and attendance are managed here. Individual staff sign-in accounts and role-restricted app sessions are not yet configured.</p>
   </div>}
   {tab==='analytics'&&<div style={{marginTop:18}}>
    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Sales & service analytics</h3><div style={{display:'flex',gap:7}}><select value={analyticsRange} onChange={e=>setAnalyticsRange(e.target.value as typeof analyticsRange)} style={{padding:8,border:'1px solid #d6d3d1',borderRadius:8}}><option value='today'>Today</option><option value='7days'>Last 7 days</option><option value='30days'>Last 30 days</option><option value='year'>Last year</option></select><button type='button' className='outline-btn' style={{width:'auto',padding:'8px 10px'}} onClick={exportAnalytics}>Export CSV</button></div></div><p style={{fontSize:11,color:'#78716c'}}>Based on up to the latest 1,000 orders for this branch. Revenue shown is completed order value, not independently verified payment settlement.</p>
