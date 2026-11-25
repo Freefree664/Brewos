@@ -225,7 +225,7 @@ function App() {
             <div style={{fontSize:12,color:'#78716c',fontWeight:700,letterSpacing:1}}>YOUR TABLE</div>
             <div style={{fontSize:30,fontWeight:800,color:'#047857',marginTop:5}}>{qrTableInfo.table_name}</div>
           </div>
-          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu. When café staff activate your table, its session code appears automatically.</p>
+          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu. When café staff activate your table, ask them for the six-digit ordering code.</p>
           {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
           {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
           <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} sessionActive={Boolean(qrTableInfo.session_active)} />
