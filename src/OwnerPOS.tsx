@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Minus, Plus, RefreshCw, Search, ShoppingCart, Trash2, ReceiptText } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Cafe = { id: string; name: string }
 type Branch = { id: string; name: string }
@@ -26,6 +27,8 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   const [search, setSearch] = useState('')
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway')
   const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [upiId, setUpiId] = useState('')
   const [notes, setNotes] = useState('')
   const [discount, setDiscount] = useState('0')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash')
@@ -42,6 +45,17 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   useEffect(() => {
     if (!cafeId && cafes.length) setCafeId(cafes[0].id)
   }, [cafes, cafeId])
+
+  useEffect(() => {
+    if (!supabase || !cafeId) { setUpiId(''); return }
+    let active = true
+    void supabase.from('cafes').select('upi_id').eq('id', cafeId).maybeSingle().then(({ data, error }) => {
+      if (!active) return
+      if (error) { setMessage(error.message); return }
+      setUpiId(data?.upi_id || '')
+    })
+    return () => { active = false }
+  }, [cafeId])
 
   useEffect(() => {
     if (!cafeId || !supabase) {
@@ -125,7 +139,8 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
       p_customer_name: customerName.trim() || null,
       p_notes: notes.trim() || null,
       p_items: cart.map(line => ({ menu_item_id: line.item.id, quantity: line.quantity })),
-      p_discount_paise: discountPaise
+      p_discount_paise: discountPaise,
+      p_customer_phone: customerPhone.trim() || null
     })
     setSaving(false)
     if (error) { setMessage(error.message); return }
@@ -216,6 +231,9 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <label style={{ display: 'grid', gap: 5, fontSize: 11, marginTop: 9 }}>Customer name (optional)
           <input value={customerName} onChange={e => setCustomerName(e.target.value)} maxLength={100} placeholder="Customer name" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
         </label>
+        <label style={{ display: 'grid', gap: 5, fontSize: 11, marginTop: 9 }}>Customer WhatsApp number (optional)
+          <input type="tel" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} maxLength={20} placeholder="+91 98765 43210" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
+        </label>
         <label style={{ display: 'grid', gap: 5, fontSize: 11, marginTop: 9 }}>Order note (optional)
           <textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} rows={2} placeholder="Special instructions" style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, resize: 'vertical' }}/>
         </label>
@@ -226,12 +244,16 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
           </label>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>Discount</span><b>−{money(Math.min(discountPaise, subtotal))}</b></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><b>Total</b><b>{money(total)}</b></div>
+          <label style={{ display: 'grid', gap: 5, fontSize: 11 }}>Payment mode for this bill
+            <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)} style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, background: '#fff' }}><option value="cash">Cash</option><option value="upi">UPI · Scan QR</option><option value="card">Card</option></select>
+          </label>
+          {paymentMethod === 'upi' && <p style={{ fontSize: 10, color: upiId ? '#047857' : '#b91c1c', margin: 0 }}>{upiId ? 'A UPI QR will be added to the bill.' : 'Add this restaurant’s UPI ID in Restaurant payment settings before creating a UPI bill.'}</p>}
         </div>
-        <button type="button" className="btn" disabled={!cart.length || saving || !branchId} onClick={() => void createBill()} style={{ width: '100%', justifyContent: 'center', marginTop: 13 }}>
+        <button type="button" className="btn" disabled={!cart.length || saving || !branchId || (paymentMethod === 'upi' && !upiId)} onClick={() => void createBill()} style={{ width: '100%', justifyContent: 'center', marginTop: 13 }}>
           <ReceiptText size={15}/>{saving ? 'Saving bill…' : 'Create bill & send to orders'}
         </button>
         <button type="button" className="outline-btn" disabled={!cart.length || saving} onClick={() => { setCart([]); setBill(null) }} style={{ width: '100%', marginTop: 8 }}>Clear bill</button>
-        <p style={{ fontSize: 10, lineHeight: 1.5, color: '#78716c', marginBottom: 0 }}>This records an order, not a payment. Cash/card/UPI collection and receipt printing are not connected yet.</p>
+        <p style={{ fontSize: 10, lineHeight: 1.5, color: '#78716c', marginBottom: 0 }}>The selected payment mode is saved with the bill. UPI QR payments must be verified by staff before marking them paid.</p>
       </div>
     </div>
     {bill && <div className="pos-receipt" style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
@@ -240,6 +262,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
       <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · Total {money(bill.total_paise)}</p>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Recorded payments</span><b>{money(paidPaise)}</b></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span>Balance due</span><b>{money(duePaise)}</b></div>
+      {paymentMethod === 'upi' && upiId && <div style={{ display: 'grid', justifyItems: 'center', gap: 8, padding: 12, marginTop: 12, border: '1px solid #a7f3d0', borderRadius: 12, background: '#fff' }}><b style={{ fontSize: 13 }}>Scan to pay {money(bill.total_paise)}</b><QRCodeSVG value={'upi://pay?pa=' + encodeURIComponent(upiId) + '&pn=' + encodeURIComponent('BrewOS Restaurant') + '&am=' + (bill.total_paise / 100).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent('Bill ' + bill.order_number)} size={190} level="M"/><span style={{ fontSize: 11, color: '#57534e' }}>UPI ID: {upiId}</span><span style={{ fontSize: 10, color: '#b45309', textAlign: 'center' }}>Only record the payment after checking the successful transaction in the restaurant’s UPI app.</span></div>}
       {duePaise > 0 && <div style={{ display: 'grid', gap: 8, marginTop: 12, color: '#292524' }}>
         <b style={{ fontSize: 13 }}>Record payment (manual)</b>
         <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)} style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, background: '#fff' }}><option value="cash">Cash</option><option value="card">Card</option><option value="upi">UPI</option></select>
@@ -248,8 +271,9 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <button type="button" className="btn" disabled={paymentSaving} onClick={() => void recordPayment()} style={{ justifyContent: 'center' }}>{paymentSaving ? 'Recording…' : 'Record payment'}</button>
       </div>}
       {duePaise === 0 && <p style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Paid in full</p>}
-      <button type="button" className="outline-btn" onClick={() => window.print()} style={{ width: '100%', marginTop: 10 }}>Print receipt</button>
-      <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Payment entries are records only. Verify receipts separately; BrewOS does not collect money or connect to a payment gateway.</p>
+      {customerPhone.trim() && <button type="button" className="outline-btn" onClick={() => { const phone = customerPhone.replace(/[^0-9]/g, ''); const text = 'BrewOS bill #' + bill.order_number + '\nTotal: ' + money(bill.total_paise) + '\nPaid: ' + money(paidPaise) + '\nBalance: ' + money(duePaise) + '\nThank you for visiting!'; window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer') }} style={{ width: '100%', marginTop: 10 }}>Send bill on WhatsApp</button>}
+      <button type="button" className="outline-btn" onClick={() => window.print()} style={{ width: '100%', marginTop: 10 }}>Print / save digital bill</button>
+      <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Bills and payment records are saved in BrewOS. WhatsApp opens a prepared message for the owner to send; UPI payment is completed in the customer’s UPI app, not inside BrewOS.</p>
     </div>}
     {message && <p role="alert" style={{ fontSize: 12, color: '#b91c1c', overflowWrap: 'anywhere' }}>{message}</p>}
   </section>
