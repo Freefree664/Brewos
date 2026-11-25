@@ -180,6 +180,18 @@ function App() {
     void loadPublicTableInfo()
     return () => { active = false }
   }, [qrTokenFromUrl])
+  useEffect(() => {
+    if (!qrTokenFromUrl || !supabase) return
+    let active = true
+    const refreshSessionCode = async () => {
+      const { data, error } = await supabase.rpc('get_public_table_info', { p_token: qrTokenFromUrl })
+      if (!active || error || !data) return
+      const latest = data as {active_pin?:string|null}
+      setQrTableInfo(current => current ? {...current, active_pin: latest.active_pin || null} : current)
+    }
+    const timer = window.setInterval(() => void refreshSessionCode(), 5000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [qrTokenFromUrl])
   const t = copy[lang]
   if (qrTokenFromUrl) {
     return <div className="guest-page-shell">
@@ -484,9 +496,9 @@ function App() {
 <b style={{fontSize:12}}>Guest table QR code</b>
 <p style={{fontSize:11,margin:'6px 0',overflowWrap:'anywhere'}}>{newTableToken}</p>
 <button type="button" className="outline-btn" style={{width:'auto',padding:'8px 12px'}} onClick={()=>void navigator.clipboard?.writeText(newTableToken)}>Copy token</button>
-<p style={{fontSize:11,margin:'8px 0 0'}}>Display this QR at the table. It identifies the table but does not authorize an order; café staff issue a short-lived PIN for each order.</p>
+<p style={{fontSize:11,margin:'8px 0 0'}}>Display this QR at the table. When the owner activates the table session, customers see its session code automatically.</p>
 <div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={`${window.location.origin}/?table=${encodeURIComponent(newTableToken)}`} size={220} level="M" includeMargin /></div>
-<p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to identify this table, browse the menu, and send an order using a PIN issued by café staff.</p>
+<p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to identify this table, browse the menu, and order when the owner opens the table session.</p>
 </div>}
 <div style={{display:'grid',gap:8,marginTop:14}}>
 <b style={{fontSize:13}}>Existing tables</b>
