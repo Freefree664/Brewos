@@ -538,12 +538,14 @@ function App() {
  if(!user){setAuthMessage('Account created. Confirm your email, then sign in using the same email and your staff invitation code.');return}
  setAuthUser({id:user.id,email:user.email})
  if(staffInviteToken.trim()){
-  const {error:claimError}=await supabase.rpc('claim_staff_invite',{p_token:staffInviteToken.trim()})
+  const {data:claimData,error:claimError}=await supabase.rpc('claim_staff_invite',{p_token:staffInviteToken.trim()})
   if(claimError){setAuthMessage(claimError.message);return}
+  const claimed=Array.isArray(claimData)?claimData[0]:claimData
+  if(claimed)setLinkedStaff({id:claimed.staff_id,cafe_id:claimed.cafe_id,branch_id:claimed.branch_id,full_name:claimed.full_name,role:claimed.role,active:true})
   setStaffInviteToken('');setDashboard(false);setAuthMessage('Staff invitation accepted. Your role-based workspace is ready.');return
  }
- const {data:existingStaff}=await supabase.from('staff_members').select('id').eq('auth_user_id',user.id).maybeSingle()
- if(existingStaff){setDashboard(false);setAuthMessage('');return}
+ const {data:existingStaff}=await supabase.from('staff_members').select('id,cafe_id,branch_id,full_name,role,active').eq('auth_user_id',user.id).eq('active',true).maybeSingle()
+ if(existingStaff){setLinkedStaff(existingStaff);setDashboard(false);setAuthMessage('');return}
  setDashboard(false)
  const {data:profile}=await supabase.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
  setProfileName(profile?.full_name||'');setProfileMessage('');setProfileOpen(true);setAuthMessage('')
