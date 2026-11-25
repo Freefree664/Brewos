@@ -13,7 +13,7 @@ type MenuItem = {
   branch_id: string | null
 }
 type CartLine = { item: MenuItem; quantity: number }
-type CreatedBill = { order_id: string; order_number: number; subtotal_paise: number; discount_paise: number; total_paise: number }
+type CreatedBill = { order_id: string; order_number: number; subtotal_paise: number; discount_paise: number; total_paise: number; lines: CartLine[] }
 
 const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -131,7 +131,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
     if (error) { setMessage(error.message); return }
     const created = Array.isArray(data) ? data[0] : data
     if (!created?.order_number) { setMessage('The bill was not confirmed. Refresh incoming orders before retrying.'); return }
-    setBill({ order_id: created.order_id, order_number: Number(created.order_number), subtotal_paise: Number(created.subtotal_paise), discount_paise: Number(created.discount_paise), total_paise: Number(created.total_paise) })
+    setBill({ order_id: created.order_id, order_number: Number(created.order_number), subtotal_paise: Number(created.subtotal_paise), discount_paise: Number(created.discount_paise), total_paise: Number(created.total_paise), lines: cart.map(line => ({ item: line.item, quantity: line.quantity })) })
     setPaidPaise(0)
     setDuePaise(Number(created.total_paise))
     setPaymentAmount((Number(created.total_paise) / 100).toFixed(2))
@@ -235,7 +235,8 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
       </div>
     </div>
     {bill && <div className="pos-receipt" style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
-      <b>Bill #{bill.order_number} saved</b>
+      <b>BREWOS · RECEIPT #{bill.order_number}</b>
+      <div style={{ display: 'grid', gap: 5, margin: '12px 0', fontSize: 12 }}>{bill.lines.map(line => <div key={line.item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><span>{line.item.name} × {line.quantity}</span><b>{money(line.item.price_paise * line.quantity)}</b></div>)}</div>
       <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · Total {money(bill.total_paise)}</p>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Recorded payments</span><b>{money(paidPaise)}</b></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span>Balance due</span><b>{money(duePaise)}</b></div>
