@@ -1,4 +1,4 @@
-name: Deploy BrewOS preview to GitHub Pages
+name: Deploy Rivantoq preview to GitHub Pages
 
 on:
   push:
