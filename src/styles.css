@@ -27,3 +27,17 @@
 .spin{animation:brew-spin 1s linear infinite}@keyframes brew-spin{to{transform:rotate(360deg)}}
 @media(max-width:700px){.orders-workspace{padding:16px;margin-top:20px}.orders-heading{align-items:flex-start}.orders-heading-actions{width:100%;justify-content:flex-start}.orders-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.orders-grid{grid-template-columns:1fr}.orders-selectors{align-items:stretch}.orders-selectors label{flex:1;min-width:135px}.orders-sync{width:100%;margin-left:0}.orders-toolbar{display:grid}.orders-search{min-width:0}.guest-menu-grid{grid-template-columns:1fr 1fr}.guest-dish-image{height:120px}.guest-dish-info{padding:10px}.guest-dish-info h3{font-size:12px}.guest-dish-bottom{align-items:flex-start;flex-direction:column}.guest-menu-heading h2{font-size:21px}.guest-page-shell{padding:12px 8px 30px}.guest-page-card{border-radius:21px;padding:18px 13px}}
 @media(max-width:390px){.guest-menu-grid{grid-template-columns:1fr}.orders-tabs button{padding:8px 9px;font-size:10px}}
+
+
+/* Elevated guest welcome and activation experience */
+.guest-page-card{position:relative;overflow:hidden;text-align:left!important}
+.guest-brand-mark{width:54px;height:54px;margin:0 auto 8px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,#6d58ca,#a47ce6);color:#fff;box-shadow:0 12px 26px #6d58ca38}
+.guest-brand-name{text-align:center;font:900 13px Manrope,sans-serif;letter-spacing:2px;color:#42345f;margin-bottom:19px}.guest-brand-name span{display:block;margin-top:3px;font:700 8px 'DM Sans',sans-serif;letter-spacing:2.5px;color:#a18bbf}
+.guest-welcome-banner{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px;border-radius:20px;background:linear-gradient(120deg,#5c49b5 0%,#8062cf 54%,#b48ce5 100%);color:#fff;text-align:left;box-shadow:0 14px 28px #6d58ca30}
+.guest-welcome-banner:after{content:'';position:absolute;width:190px;height:190px;right:-62px;top:-88px;border-radius:50%;background:#ffffff18}
+.guest-welcome-copy{position:relative;z-index:1;max-width:440px}.guest-welcome-copy>span{font-size:9px;letter-spacing:1.7px;font-weight:900;color:#e9dfff}.guest-welcome-copy h1{font:900 clamp(23px,4vw,31px) Manrope,sans-serif!important;letter-spacing:-1px;color:#fff!important;margin:9px 0 6px!important}.guest-welcome-copy p{font-size:11px;line-height:1.6;color:#f0eaff;margin:0;max-width:320px}
+.guest-welcome-art{position:relative;z-index:1;flex:0 0 82px;width:82px;height:82px;border-radius:27px;display:grid;place-items:center;background:#ffffff20;color:#fff;transform:rotate(7deg)}.guest-welcome-art svg:last-child{position:absolute;right:5px;top:4px;color:#ffe8a7}
+.guest-page-card>p[style*="fontSize: 18px"]{font:800 18px Manrope,sans-serif!important;color:#392d55!important;margin-top:20px!important}
+.guest-page-card>div[style*="YOUR TABLE"]{background:linear-gradient(120deg,#fff0d9,#eee8ff)!important;border:1px solid #e9def6;box-shadow:0 8px 20px #5a3d8d0b}
+.guest-page-card .guest-field input:focus,.guest-page-card .guest-field textarea:focus{outline:2px solid #a994e8;outline-offset:1px}
+@media(max-width:430px){.guest-welcome-banner{padding:18px}.guest-welcome-art{flex-basis:62px;width:62px;height:62px;border-radius:20px}.guest-welcome-art svg:first-child{width:32px}.guest-welcome-copy h1{font-size:23px!important}.guest-page-card{padding:16px 12px}}
