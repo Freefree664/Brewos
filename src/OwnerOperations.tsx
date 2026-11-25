@@ -150,7 +150,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   e.preventDefault()
   if(!supabase||!shiftStaff||!shiftStart||!shiftEnd)return
   setBusy(true);const {error}=await supabase.from('staff_shifts').insert({cafe_id:cafeId,branch_id:branchId,staff_id:shiftStaff,starts_at:new Date(shiftStart).toISOString(),ends_at:new Date(shiftEnd).toISOString()})
-  setBusy(false);if(error)setMessage(error.message);else{setMessage('Shift saved.');setShiftStart('');setShiftEnd('')}
+  setBusy(false);if(error)setMessage(error.message);else{setMessage('Shift saved.');setShiftStart('');setShiftEnd('');await refresh()}
  }
  async function attendance(person:Staff,kind:'in'|'out'){
   if(!supabase)return
@@ -165,6 +165,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    else{const result=await supabase.from('staff_attendance').update({check_out_at:new Date().toISOString()}).eq('id',data.id);setMessage(result.error?.message||person.full_name+' checked out.')}
   }
   setBusy(false)
+  await refresh()
  }
  async function setOrderStatus(order:Order,status:string){
   if(!supabase)return
@@ -216,9 +217,9 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    </div>
   </div>}
   {tab==='waiter'&&<div style={{marginTop:18}}>
-   <h3 style={{margin:'0 0 5px',fontSize:17}}>Waiter floor · table overview</h3><p style={{fontSize:11,color:'#78716c'}}>Table status is derived from its latest active order. Assign a waiter to each table.</p>
-   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:11,marginTop:12}}>
-    {tables.map(table=>{const order=orders.filter(o=>o.table_id===table.id&&!['completed','cancelled'].includes(o.status)).sort((a,b)=>+new Date(b.created_at)-+new Date(a.created_at))[0];const assigned=staff.find(s=>s.id===table.assigned_waiter_id);return <article key={table.id} style={{border:'1px solid #e7e5e4',borderRadius:13,padding:13,background:order?'#fffbeb':'#f0fdf4'}}>
+   <h3 style={{margin:'0 0 5px',fontSize:17}}>Visual waiter floor plan</h3><p style={{fontSize:11,color:'#78716c'}}>Live table tiles show availability, active order status and waiter assignment. Arrange tables physically at the café; this board is a status view, not a measured floor blueprint.</p>
+   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:12,marginTop:12,padding:14,border:'1px dashed #cbd5e1',borderRadius:14,background:'#f8fafc'}}>
+    {tables.map(table=>{const order=orders.filter(o=>o.table_id===table.id&&!['completed','cancelled'].includes(o.status)).sort((a,b)=>+new Date(b.created_at)-+new Date(a.created_at))[0];const assigned=staff.find(s=>s.id===table.assigned_waiter_id);return <article key={table.id} style={{border:'1px solid '+(order?'#fbbf24':'#86efac'),borderRadius:14,padding:14,minHeight:142,background:order?'#fffbeb':'#f0fdf4',boxShadow:'0 2px 7px rgba(15,23,42,.04)'}}>
      <div style={{display:'flex',justifyContent:'space-between',gap:8}}><b>{table.table_name}</b><span style={{fontSize:10,fontWeight:800,color:order?'#92400e':'#166534'}}>{order?order.status.toUpperCase():'AVAILABLE'}</span></div>
      {order&&<p style={{fontSize:11,margin:'7px 0'}}>Order #{order.order_number} · {money(order.total_paise)}</p>}
      <label style={{display:'grid',gap:5,fontSize:10,marginTop:9}}>Assigned waiter<select value={table.assigned_waiter_id||''} onChange={e=>void assignWaiter(table,e.target.value)} style={{padding:9,border:'1px solid #d6d3d1',borderRadius:8,background:'#fff'}}><option value="">Unassigned</option>{staff.filter(s=>s.active&&s.role==='waiter').map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}</select></label>
