@@ -4,11 +4,12 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed, CheckCircle2, Clock3 } from 'lucide-react'
 
 type MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}
-type Props={token:string;items:MenuItem[];initialPin?:string}
+type Props={token:string;items:MenuItem[];sessionActive:boolean}
 const rupees=(paise:number)=>'₹'+(paise/100).toLocaleString('en-IN',{maximumFractionDigits:2})
 const progress=[{key:'pending',label:'Order placed',hint:'Your order has reached the café.'},{key:'accepted',label:'Confirmed',hint:'The café has confirmed your order.'},{key:'preparing',label:'Preparing',hint:'The kitchen is preparing your food.'},{key:'ready',label:'Ready',hint:'Your order is ready to be served.'},{key:'served',label:'Served',hint:'Your order has been served.'},{key:'completed',label:'Completed',hint:'Thank you for visiting us!'}]
 
-export function CustomerOrdering({token,items,initialPin=''}:Props){
+export function CustomerOrdering({token,items,sessionActive}:Props){
+ const [sessionPin,setSessionPin]=useState('')
  const [cart,setCart]=useState<Record<string,number>>({}),[notes,setNotes]=useState('')
  const [customerName,setCustomerName]=useState(''),[customerPhone,setCustomerPhone]=useState('')
  const [loyaltySummary,setLoyaltySummary]=useState<{earned:number;balance:number}|null>(null)
@@ -40,11 +41,12 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
  },[orderId,token])
  async function placeOrder(){
   if(!supabase){setMessage('Ordering is temporarily unavailable. Please ask café staff for help.');return}
-  if(!initialPin){setMessage('This table is not open for ordering yet. Please wait for café staff to activate it.');return}
+  if(!sessionActive){setMessage('This table is not open for ordering yet. Please wait for café staff to activate it.');return}
+  if(!/^\\d{6}$/.test(sessionPin)){setMessage('Enter the six-digit code provided by café staff.');return}
   if(!cartItems.length){setMessage('Please add at least one dish to your order.');return}
   setBusy(true);setMessage('')
   try{
-   const {data,error}=await supabase.rpc('submit_guest_order',{p_token:token,p_pin:initialPin,p_items:cartItems.map(x=>({menu_item_id:x.id,quantity:cart[x.id]})),p_notes:notes.trim()||null,p_customer_name:customerName.trim()||null,p_customer_phone:customerPhone.trim()||null})
+   const {data,error}=await supabase.rpc('submit_guest_order',{p_token:token,p_pin:sessionPin,p_items:cartItems.map(x=>({menu_item_id:x.id,quantity:cart[x.id]})),p_notes:notes.trim()||null,p_customer_name:customerName.trim()||null,p_customer_phone:customerPhone.trim()||null})
    if(error){setMessage(error.message||'We could not send your order. Please try again.');return}
    const result=data as {order_id?:string;error?:string;status?:string}|null
    if(result?.error){setMessage(result.error);return}
@@ -69,14 +71,14 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
  }
  return <section className="guest-ordering">
   <div className="guest-menu-heading"><div><span className="guest-eyebrow"><Sparkles size={13}/> FRESH FROM OUR KITCHEN</span><h2>Explore the menu</h2><p>Find your favourites and build your order.</p></div><div className="guest-cart-count"><ShoppingBag size={16}/><b>{count}</b><span>in cart</span></div></div>
-  {!initialPin&&<div className="guest-session-closed" role="status"><Clock3 size={18}/><div><b>This table is not open yet</b><span>Your café team will activate the table. The ordering code will appear here automatically.</span></div></div>}
-  {initialPin&&<div className="guest-session-code"><span>TABLE SESSION ACTIVE</span><b>{initialPin}</b><small>Your table is ready for ordering. No need to ask for a new code.</small></div>}
+  {!sessionActive&&<div className="guest-session-closed" role="status"><Clock3 size={18}/><div><b>This table is not open yet</b><span>Your café team must activate this table before you can order.</span></div></div>}
+  {sessionActive&&<div className="guest-session-code"><span>TABLE SESSION ACTIVE</span><b>Ready for ordering</b><small>Ask café staff for the six-digit code.</small></div>}
   <label className="guest-search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search dishes or ingredients…"/></label>
   <div className="guest-categories">{categories.map(x=><button type="button" key={x} className={category===x?'active':''} onClick={()=>setCategory(x)}>{x}</button>)}</div>
   {!visible.length&&<div className="guest-no-items"><UtensilsCrossed size={24}/><b>No dishes found</b><span>Try another category or search.</span></div>}
   <div className="guest-menu-grid">{visible.map(item=><article className="guest-dish-card" key={item.id}>
    <div className="guest-dish-image">{item.image?<img src={item.image} alt={item.name}/>:<div className="guest-image-placeholder"><UtensilsCrossed size={26}/><span>Made with care</span></div>}<span className="guest-dish-category">{item.category}</span></div>
-   <div className="guest-dish-info"><h3>{item.name}</h3>{item.description&&<p>{item.description}</p>}<div className="guest-dish-bottom"><strong>{rupees(item.price)}</strong><div className="guest-qty-control"><button type="button" aria-label={'Remove one '+item.name} disabled={!cart[item.id]} onClick={()=>change(item.id,-1)}><Minus size={14}/></button><b>{cart[item.id]||0}</b><button type="button" aria-label={'Add one '+item.name} disabled={(cart[item.id]||0)>=20||!initialPin} onClick={()=>change(item.id,1)}><Plus size={14}/></button></div></div></div>
+   <div className="guest-dish-info"><h3>{item.name}</h3>{item.description&&<p>{item.description}</p>}<div className="guest-dish-bottom"><strong>{rupees(item.price)}</strong><div className="guest-qty-control"><button type="button" aria-label={'Remove one '+item.name} disabled={!cart[item.id]} onClick={()=>change(item.id,-1)}><Minus size={14}/></button><b>{cart[item.id]||0}</b><button type="button" aria-label={'Add one '+item.name} disabled={(cart[item.id]||0)>=20||!sessionActive} onClick={()=>change(item.id,1)}><Plus size={14}/></button></div></div></div>
   </article>)}</div>
   {cartItems.length>0&&<div className="guest-checkout">
    <div className="guest-checkout-head"><div><span>YOUR SELECTION</span><h3>Your order</h3></div><b>{count} items</b></div>
@@ -85,8 +87,8 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
    <label className="guest-field">Your name <span>Optional</span><input value={customerName} onChange={e=>setCustomerName(e.target.value.slice(0,100))} maxLength={100} placeholder="Name for your order"/></label>
     <label className="guest-field">Mobile number <span>Optional · Add it to earn reward points</span><input type="tel" value={customerPhone} onChange={e=>setCustomerPhone(e.target.value.slice(0,20))} maxLength={20} placeholder="e.g. +91 98765 43210"/></label>
     <label className="guest-field">Special instructions <span>Optional</span><textarea value={notes} onChange={e=>setNotes(e.target.value.slice(0,500))} placeholder="Allergies or preparation preferences?"/></label>
-   <div className="guest-code-confirm"><span>Table activation code</span><b>{initialPin||'Waiting for activation'}</b></div>
-   <button type="button" className="guest-place-order" onClick={()=>void placeOrder()} disabled={busy||!cartItems.length||!initialPin||!supabase}>{busy?'Sending your order…':'Place order · '+rupees(total)}</button>
+   <label className="guest-field">Six-digit code from café staff<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={sessionPin} onChange={e=>setSessionPin(e.target.value.replace(/\\D/g,'').slice(0,6))} placeholder="Enter table code" /></label>
+   <button type="button" className="guest-place-order" onClick={()=>void placeOrder()} disabled={busy||!cartItems.length||!sessionActive||!/^\\d{6}$/.test(sessionPin)||!supabase}>{busy?'Sending your order…':'Place order · '+rupees(total)}</button>
    <p className="guest-payment-note">No payment is collected here. Your server will help with payment.</p>
   </div>}
   {message&&<p role="status" className="guest-message">{message}</p>}
@@ -108,11 +110,11 @@ export function TablePinIssuer({tableId}:{tableId:string}){
   setBusy(false)
   if(error){setMessage(error.message);return}
   if(active){setActive(false);setPin('');setMessage('Table session ended. The customer code is now invalid.')}
-  else{const result=data as {pin?:string}|null;setActive(true);setPin(result?.pin||'');setMessage('Table activated. Customers scanning its QR will now see this code automatically.')}
+  else{const result=data as {pin?:string}|null;setActive(true);setPin(result?.pin||'');setMessage('Table activated. Share the six-digit code with the customer.')}
  }
  return <div style={{marginTop:10,padding:12,borderRadius:10,background:active?'#ecfdf5':'#f5f5f4',border:'1px solid '+(active?'#a7f3d0':'#e7e5e4')}}>
   <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',flexWrap:'wrap'}}><b>{active?'Ordering session active':'Ordering session closed'}</b><button type="button" onClick={()=>void toggleSession()} disabled={busy} style={{padding:'8px 11px',border:0,borderRadius:8,background:active?'#fee2e2':'#047857',color:active?'#991b1b':'#fff',fontSize:12,fontWeight:700}}>{busy?'Please wait…':active?'End table session':'Activate table & show code'}</button></div>
-  {active&&pin&&<div style={{marginTop:10}}><small style={{display:'block',color:'#047857',fontWeight:700}}>CUSTOMER ACTIVATION CODE</small><b style={{fontSize:25,letterSpacing:5,color:'#065f46'}}>{pin}</b><p style={{fontSize:11,margin:'4px 0 0',color:'#475569'}}>Customers see this automatically on the QR ordering page. It stays valid until you end the session.</p></div>}
+  {active&&pin&&<div style={{marginTop:10}}><small style={{display:'block',color:'#047857',fontWeight:700}}>CUSTOMER ACTIVATION CODE</small><b style={{fontSize:25,letterSpacing:5,color:'#065f46'}}>{pin}</b><p style={{fontSize:11,margin:'4px 0 0',color:'#475569'}}>Share this code with the customer. It stays valid until you end the session.</p></div>}
   {message&&<p role="status" style={{fontSize:11,margin:'8px 0 0',color:'#475569'}}>{message}</p>}
  </div>
 }
