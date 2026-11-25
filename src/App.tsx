@@ -179,10 +179,11 @@ function App() {
     return () => { active = false }
   }, [qrTokenFromUrl])
   useEffect(() => {
-    if (!qrTokenFromUrl || !supabase) return
+    const client = supabase
+    if (!qrTokenFromUrl || !client) return
     let active = true
     const refreshSessionCode = async () => {
-      const { data, error } = await supabase.rpc('get_public_table_info', { p_token: qrTokenFromUrl })
+      const { data, error } = await client.rpc('get_public_table_info', { p_token: qrTokenFromUrl })
       if (!active || error) return
       if (!data) {
         setQrTableInfo(current => current ? {...current, active_pin: null} : current)
