@@ -15,7 +15,6 @@ BrewOS is a café ordering and management web app built with React, Vite, TypeSc
 
 ## Not yet implemented
 
-- POS cashier billing and split payments
 - Dedicated kitchen display / preparation queue
 - Staff scheduling, attendance and waiter assignment
 - Inventory and ingredient tracking
@@ -48,8 +47,12 @@ For a new Supabase project, review and apply migrations in numeric order:
 10. `0010_version_public_qr_menu_rpcs.sql`
 11. `0011_remove_legacy_menu_image_policies.sql`
 12. `0012_restore_owner_menu_image_policies.sql`
+13. `0013_pos_order_creation.sql`
+14. `0014_pos_discounts_and_payments.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
+
+The POS screen supports item search, quantity changes, dine-in/takeaway/delivery, server-validated discounts, manual cash/card/UPI payment records (including split tenders), and a printable receipt view. Payment records are ledger entries only; BrewOS does not collect or verify money through a payment gateway. Tax configuration, refunds and payment reconciliation remain future work.
 
 The first Super Admin must be added to `public.super_admins` by a trusted project administrator using the Supabase SQL Editor. Do not expose an administrative key in the app.
 
@@ -105,9 +108,9 @@ The guest-order and owner-order code paths are implemented, but a successful fro
 
 Emerald `#059669`, cream `#F5EBD8`, charcoal `#292524`.
 
-## Phase 2 — POS & Billing (initial slice)
+## Phase 2 — POS & Billing
 
-- The owner workspace includes a counter POS screen for selecting available menu items, adjusting quantities, choosing dine-in/takeaway/delivery, and creating an order.
-- POS orders are created atomically through the `create_pos_order` RPC. The database re-reads current menu prices and checks item availability; browser-submitted prices are never trusted.
-- POS orders appear in the existing Incoming orders view and share the same order lifecycle as QR guest orders.
-- This initial slice records an order and bill total only. Payment collection/reconciliation, configurable tax, discounts, split tenders, receipt printing, and refunds are not implemented yet.
+- Owner workspace POS with branch-aware menu search, cart controls, order types and customer notes.
+- Atomic database order creation recalculates menu prices and discounts server-side.
+- Manual cash/card/UPI payment ledger supports partial and split tender entries, with balance-due checks and owner/manager authorization.
+- Printable bill/receipt view. No automated payment gateway, tax engine, refunds or settlement reconciliation yet.
