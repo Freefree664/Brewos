@@ -231,7 +231,7 @@ function App() {
           <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} initialPin={qrTableInfo.active_pin || ''} />
           <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Payment is not collected here. The café team will confirm your order.</p>
         </>}
-        <a href="/" style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
+        <a href={import.meta.env.BASE_URL} style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
       </main>
     </div>
   }
@@ -516,7 +516,7 @@ function App() {
 <p style={{fontSize:11,margin:'6px 0',overflowWrap:'anywhere'}}>{newTableToken}</p>
 <button type="button" className="outline-btn" style={{width:'auto',padding:'8px 12px'}} onClick={()=>void navigator.clipboard?.writeText(newTableToken)}>Copy token</button>
 <p style={{fontSize:11,margin:'8px 0 0'}}>Display this QR at the table. When the owner activates the table session, customers see its session code automatically.</p>
-<div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={`${window.location.origin}/?table=${encodeURIComponent(newTableToken)}`} size={220} level="M" includeMargin /></div>
+<div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={`${window.location.origin}${import.meta.env.BASE_URL}?table=${encodeURIComponent(newTableToken)}`} size={220} level="M" includeMargin /></div>
 <p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to identify this table, browse the menu, and order when the owner opens the table session.</p>
 </div>}
 <div style={{display:'grid',gap:8,marginTop:14}}>
