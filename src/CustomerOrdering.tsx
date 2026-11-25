@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed } from 'lucide-react'
 type MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}
-type Props={token:string;items:MenuItem[]}
+type Props={token:string;items:MenuItem[];initialPin?:string}
 const rupees=(paise:number)=>'₹'+(paise/100).toLocaleString('en-IN',{maximumFractionDigits:2})
 
-export function CustomerOrdering({token,items}:Props){
- const [cart,setCart]=useState<Record<string,number>>({}),[pin,setPin]=useState(''),[notes,setNotes]=useState('')
+export function CustomerOrdering({token,items,initialPin=''}:Props){
+ const [cart,setCart]=useState<Record<string,number>>({}),[pin,setPin]=useState(initialPin),[notes,setNotes]=useState('')
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[success,setSuccess]=useState(false)
  const [category,setCategory]=useState('All'),[search,setSearch]=useState('')
  const cartItems=useMemo(()=>items.filter(x=>(cart[x.id]||0)>0),[items,cart])
@@ -47,7 +47,7 @@ export function CustomerOrdering({token,items}:Props){
    {cartItems.map(x=><div className="guest-cart-row" key={x.id}><span>{x.name} × {cart[x.id]}</span><b>{rupees(x.price*cart[x.id])}</b></div>)}
    <div className="guest-total"><span>Subtotal</span><strong>{rupees(total)}</strong></div>
    <label className="guest-field">Special instructions <span>Optional</span><textarea value={notes} onChange={e=>setNotes(e.target.value.slice(0,500))} placeholder="Allergies or preparation preferences?"/></label>
-   <label className="guest-field">6-digit order PIN <span>Ask your server</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="Enter PIN"/></label>
+   <label className="guest-field">6-digit activation code <span>{initialPin?'Secure code received from café staff · pre-filled':'Ask your server for a one-time code'}</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="Enter activation code"/></label>
    <button type="button" className="guest-place-order" onClick={()=>void placeOrder()} disabled={busy||!cartItems.length||pin.length!==6||!supabase}>{busy?'Sending your order…':'Place order · '+rupees(total)}</button>
    <p className="guest-payment-note">No payment is collected here. Your server will help with payment.</p>
   </div>}
