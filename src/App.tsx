@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase, supabaseConfigured } from './lib/supabase'
-import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap } from 'lucide-react'
+import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap, UtensilsCrossed, Sparkles } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import MenuManager from './MenuManager'
 import OwnerOrders from './OwnerOrders'
@@ -82,7 +82,9 @@ function App() {
   const [qrMenuItems,setQrMenuItems] = useState<Array<{id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}>>([])
   const [qrMenuLoading,setQrMenuLoading] = useState(false)
   const [qrMenuError,setQrMenuError] = useState('')
-  const qrTokenFromUrl = new URLSearchParams(window.location.search).get('table') || ''
+  const guestUrlParams = new URLSearchParams(window.location.search)
+  const qrTokenFromUrl = guestUrlParams.get('table') || ''
+  const guestPinFromUrl = (guestUrlParams.get('pin') || '').replace(/\D/g, '').slice(0, 6)
   const [cafeName,setCafeName] = useState('')
   const [cafeSlug,setCafeSlug] = useState('')
   const [cafeDescription,setCafeDescription] = useState('')
@@ -196,7 +198,7 @@ function App() {
           <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu, add items to your cart, and ask café staff for an order PIN.</p>
           {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
           {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
-          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} />
+          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} initialPin={guestPinFromUrl} />
           <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Payment is not collected here. The café team will confirm your order.</p>
         </>}
         <a href="/" style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
