@@ -23,7 +23,7 @@ begin
   if (select auth.uid()) is null then
     raise exception 'Sign in is required to create a cashier order.';
   end if;
-  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 50 then
+  if p_items is null or jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 50 then
     raise exception 'Add between 1 and 50 menu items.';
   end if;
   if exists (
