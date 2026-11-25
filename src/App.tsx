@@ -8,6 +8,7 @@ import OwnerPOS from './OwnerPOS'
 import OwnerPaymentSettings from './OwnerPaymentSettings'
 import OwnerOperations from './OwnerOperations'
 import { CustomerOrdering, TablePinIssuer } from './CustomerOrdering'
+import StaffPortal from './StaffPortal'
 
 const copy = {
   en: {
@@ -48,6 +49,8 @@ function App() {
   const [menu,setMenu] = useState(false)
   const [dashboard,setDashboard] = useState(false)
   const [authUser,setAuthUser] = useState<{id:string;email?:string} | null>(null)
+  const [linkedStaff,setLinkedStaff] = useState<{id:string;cafe_id:string;branch_id:string|null;full_name:string;role:string;active:boolean}|null>(null)
+  const [staffInviteToken,setStaffInviteToken] = useState('')
   const [selectedPlan,setSelectedPlan] = useState<(typeof plans)[number] | null>(null)
   const [authMode,setAuthMode] = useState<'signin'|'signup'>('signin')
   const [email,setEmail] = useState('')
@@ -107,6 +110,14 @@ function App() {
     })
     return () => listener.subscription.unsubscribe()
   }, [])
+  useEffect(() => {
+    if (!supabase || !authUser?.id) { setLinkedStaff(null); return }
+    let active = true
+    void supabase.from('staff_members').select('id,cafe_id,branch_id,full_name,role,active')
+      .eq('auth_user_id',authUser.id).eq('active',true).maybeSingle()
+      .then(({data}) => { if(active) setLinkedStaff(data as typeof linkedStaff) })
+    return () => { active = false }
+  }, [authUser?.id])
   useEffect(() => {
     if (!qrTokenFromUrl) return
     let active = true
@@ -224,6 +235,7 @@ function App() {
       </main>
     </div>
   }
+  if (linkedStaff && authUser) return <StaffPortal staff={linkedStaff} onSignOut={async()=>{await supabase?.auth.signOut();setAuthUser(null);setLinkedStaff(null)}} />
   const subscriptionExpiry: Date | null = subscription?.expires_at ? new Date(subscription.expires_at) : null
   const subscriptionExpired: boolean = Boolean(subscription && (subscription.status !== 'active' || (subscriptionExpiry !== null && subscriptionExpiry.getTime() <= Date.now())))
   const subscriptionRemaining: number | null = subscriptionExpiry !== null ? Math.max(0, Math.ceil((subscriptionExpiry.getTime() - Date.now()) / 86400000)) : null
@@ -515,7 +527,32 @@ function App() {
 </div></>}
 </div><div style={{borderTop:'1px solid #eee9df',paddingTop:18}}><h3 style={{fontSize:16,margin:'0 0 12px'}}>Add a restaurant</h3><form onSubmit={createCafe} style={{display:'grid',gap:11}}><label style={{fontSize:12}}>Restaurant name<input required minLength={2} maxLength={100} value={cafeName} onChange={e=>{setCafeName(e.target.value);setCafeSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))}} placeholder="e.g. The Green Cup" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>Restaurant web address<input required maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={cafeSlug} onChange={e=>setCafeSlug(e.target.value.toLowerCase())} placeholder="the-green-cup" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/><small style={{color:'#78716c'}}>Lowercase letters, numbers and hyphens only.</small></label><label style={{fontSize:12}}>Description (optional)<textarea maxLength={500} value={cafeDescription} onChange={e=>setCafeDescription(e.target.value)} placeholder="Tell guests a little about your restaurant" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,minHeight:70}}/></label><label style={{fontSize:12}}>Contact phone (optional)<input type="tel" maxLength={25} value={cafePhone} onChange={e=>setCafePhone(e.target.value)} placeholder="Restaurant contact number" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>First branch name<input required maxLength={100} value={branchName} onChange={e=>setBranchName(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>Branch address (optional)<textarea maxLength={300} value={branchAddress} onChange={e=>setBranchAddress(e.target.value)} placeholder="Street, area, city" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,minHeight:65}}/></label><button className="btn" disabled={ownerBusy||!supabaseConfigured} style={{justifyContent:'center'}}>{ownerBusy?'Creating…':'Create restaurant'} <ArrowRight size={15}/></button></form></div>{ownerMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{ownerMessage}</p>}<button className="outline-btn" style={{width:'100%',marginTop:10}} onClick={()=>setOwnerOpen(false)}>Close</button></div></div>}
     {profileOpen&&<div className="modal-backdrop"><div className="modal" style={{maxWidth:520,width:'100%',textAlign:'left'}}><span className="modal-icon"><Users/></span><h2 style={{textAlign:'center'}}>Your BrewOS profile</h2><p style={{textAlign:'center'}}>Complete your profile details to continue.</p><form onSubmit={async (e: FormEvent<HTMLFormElement>)=>{e.preventDefault();if(!supabase)return;setProfileBusy(true);setProfileMessage('');const {data:{user},error:authError}=await supabase.auth.getUser();if(authError||!user){setProfileBusy(false);setProfileMessage('Please sign in again.');return;}const {error}=await supabase.from('profiles').upsert({id:user.id,full_name:profileName.trim(),updated_at:new Date().toISOString()});setProfileBusy(false);if(error){setProfileMessage(error.message);return;}setProfileMessage('Profile saved successfully. Your BrewOS account is ready.');}} style={{display:'grid',gap:12,textAlign:'left'}}><label style={{fontSize:12}}>Full name<input required maxLength={100} value={profileName} onChange={e=>setProfileName(e.target.value)} placeholder="Enter your full name" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><label style={{fontSize:12}}>Email<input disabled value={email} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,background:'#f5f5f4'}} /></label><button className="btn" disabled={profileBusy||!supabaseConfigured} style={{justifyContent:'center'}}>{profileBusy?'Saving…':'Save profile'} <ArrowRight size={15}/></button></form>{profileMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{profileMessage}</p>}<button type="button" className="outline-btn" style={{width:'100%',marginTop:10}} onClick={()=>setProfileOpen(false)}>Continue</button></div></div>}
-    {dashboard&&<div className="modal-backdrop" onClick={()=>setDashboard(false)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDashboard(false)}><X/></button><span className="modal-icon"><Zap/></span><h2>{authMode==='signin'?'Welcome back':'Create your BrewOS account'}</h2><p>Use your email to access the café owner workspace.</p><div style={{display:'flex',gap:8,justifyContent:'center',marginBottom:16}}><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signin');setAuthMessage('')}}>Sign in</button><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signup');setAuthMessage('')}}>Create account</button></div><form onSubmit={async (e: FormEvent<HTMLFormElement>)=>{e.preventDefault();if(!supabase){setAuthMessage('Supabase is not configured. Check Netlify environment variables and redeploy.');return;}setAuthBusy(true);setAuthMessage('');const result=authMode==='signup'?await supabase.auth.signUp({email:email.trim(),password}):await supabase.auth.signInWithPassword({email:email.trim(),password});setAuthBusy(false);if(result.error){setAuthMessage(result.error.message)}else if(result.data.session){setAuthUser({id:result.data.session.user.id,email:result.data.session.user.email});setDashboard(false);const {data:profile}=await supabase.from('profiles').select('full_name').eq('id',result.data.session.user.id).maybeSingle();setProfileName(profile?.full_name||'');setProfileMessage('');setProfileOpen(true);setAuthMessage('')}else{setAuthMessage('Account created. Check your email to confirm it, then sign in to create your profile.')}}} style={{display:'grid',gap:10,textAlign:'left'}}><label style={{fontSize:12}}>Email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><label style={{fontSize:12}}>Password<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label><button className="btn" disabled={authBusy||!supabaseConfigured}>{authBusy?'Please wait…':authMode==='signin'?'Sign in':'Create account'} <ArrowRight size={15}/></button></form>{!supabaseConfigured&&<p style={{color:'#b45309'}}>Supabase configuration is missing in this deployment. Please redeploy after adding the variables.</p>}{authMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{authMessage}</p>}</div></div>}
+    {dashboard&&<div className="modal-backdrop" onClick={()=>setDashboard(false)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDashboard(false)}><X/></button><span className="modal-icon"><Zap/></span><h2>{authMode==='signin'?'Welcome back':'Create your BrewOS account'}</h2><p>Use your email to access the café owner workspace.</p><div style={{display:'flex',gap:8,justifyContent:'center',marginBottom:16}}><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signin');setAuthMessage('')}}>Sign in</button><button className="outline-btn" type="button" onClick={()=>{setAuthMode('signup');setAuthMessage('')}}>Create account</button></div><form onSubmit={async (e: FormEvent<HTMLFormElement>)=>{
+ e.preventDefault()
+ if(!supabase){setAuthMessage('Supabase is not configured. Check Netlify environment variables and redeploy.');return}
+ setAuthBusy(true);setAuthMessage('')
+ const result=authMode==='signup'?await supabase.auth.signUp({email:email.trim(),password}):await supabase.auth.signInWithPassword({email:email.trim(),password})
+ setAuthBusy(false)
+ if(result.error){setAuthMessage(result.error.message);return}
+ const user=result.data.session?.user
+ if(!user){setAuthMessage('Account created. Confirm your email, then sign in using the same email and your staff invitation code.');return}
+ setAuthUser({id:user.id,email:user.email})
+ if(staffInviteToken.trim()){
+  const {error:claimError}=await supabase.rpc('claim_staff_invite',{p_token:staffInviteToken.trim()})
+  if(claimError){setAuthMessage(claimError.message);return}
+  setStaffInviteToken('');setDashboard(false);setAuthMessage('Staff invitation accepted. Your role-based workspace is ready.');return
+ }
+ const {data:existingStaff}=await supabase.from('staff_members').select('id').eq('auth_user_id',user.id).maybeSingle()
+ if(existingStaff){setDashboard(false);setAuthMessage('');return}
+ setDashboard(false)
+ const {data:profile}=await supabase.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
+ setProfileName(profile?.full_name||'');setProfileMessage('');setProfileOpen(true);setAuthMessage('')
+}} style={{display:'grid',gap:10,textAlign:'left'}}>
+ <label style={{fontSize:12}}>Email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label>
+ <label style={{fontSize:12}}>Password<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label>
+ <label style={{fontSize:12}}>Staff invitation code (only if your café invited you)<input value={staffInviteToken} onChange={e=>setStaffInviteToken(e.target.value.trim())} maxLength={64} autoComplete="off" placeholder="Paste your 64-character invitation code" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label>
+ <button className="btn" disabled={authBusy||!supabaseConfigured}>{authBusy?'Please wait…':authMode==='signin'?'Sign in':'Create account'} <ArrowRight size={15}/></button>
+</form></form>{!supabaseConfigured&&<p style={{color:'#b45309'}}>Supabase configuration is missing in this deployment. Please redeploy after adding the variables.</p>}{authMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{authMessage}</p>}</div></div>}
   </div>
 }
 
