@@ -44,6 +44,7 @@ create table if not exists public.staff_attendance (
   check (check_out_at is null or check_out_at > check_in_at)
 );
 create index if not exists staff_attendance_cafe_checkin_idx on public.staff_attendance(cafe_id,check_in_at desc);
+create unique index if not exists staff_attendance_one_open_shift_idx on public.staff_attendance(staff_id) where check_out_at is null;
 alter table public.staff_attendance enable row level security;
 create policy "Cafe managers manage attendance" on public.staff_attendance for all to authenticated
 using (public.has_cafe_role(cafe_id, array['owner','manager']::public.cafe_role[]))
@@ -96,21 +97,26 @@ declare
   v_points integer;
   v_name text;
   v_phone text;
+  v_is_completed_transition boolean := false;
 begin
-  if new.status = 'completed' and (tg_op = 'INSERT' or old.status is distinct from 'completed')
-     and nullif(trim(coalesce(new.customer_phone,'')),'') is not null then
+  if tg_op = 'INSERT' then
+    v_is_completed_transition := new.status = 'completed';
+  else
+    v_is_completed_transition := new.status = 'completed' and old.status is distinct from 'completed';
+  end if;
+  if v_is_completed_transition and nullif(trim(coalesce(new.customer_phone,'')),'') is not null then
     v_phone := left(trim(new.customer_phone),20);
     v_name := coalesce(nullif(left(trim(coalesce(new.customer_name,'')),100),''),'Guest');
     v_points := floor(greatest(new.total_paise,0)::numeric / 1000)::integer;
+    insert into public.customer_loyalty_accounts(cafe_id,customer_name,customer_phone,total_orders,total_spend_paise,updated_at)
+    values(new.cafe_id,v_name,v_phone,1,greatest(new.total_paise,0),now())
+    on conflict(cafe_id,customer_phone) do update
+    set customer_name=excluded.customer_name,
+        total_orders=public.customer_loyalty_accounts.total_orders+1,
+        total_spend_paise=public.customer_loyalty_accounts.total_spend_paise+excluded.total_spend_paise,
+        updated_at=now()
+    returning id into v_account_id;
     if v_points > 0 then
-      insert into public.customer_loyalty_accounts(cafe_id,customer_name,customer_phone,total_orders,total_spend_paise,updated_at)
-      values(new.cafe_id,v_name,v_phone,1,greatest(new.total_paise,0),now())
-      on conflict(cafe_id,customer_phone) do update
-      set customer_name=excluded.customer_name,
-          total_orders=public.customer_loyalty_accounts.total_orders+1,
-          total_spend_paise=public.customer_loyalty_accounts.total_spend_paise+excluded.total_spend_paise,
-          updated_at=now()
-      returning id into v_account_id;
       insert into public.customer_loyalty_ledger(cafe_id,account_id,order_id,points_delta,reason)
       values(new.cafe_id,v_account_id,new.id,v_points,'Earned on completed order')
       on conflict(order_id) do nothing;
