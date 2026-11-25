@@ -77,7 +77,7 @@ function App() {
   const [tableMessage,setTableMessage] = useState('')
   const [newTableToken,setNewTableToken] = useState('')
   const [newTableId,setNewTableId] = useState('')
-  const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string} | null>(null)
+  const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string;active_pin?:string|null} | null>(null)
   const [qrTableLoading,setQrTableLoading] = useState(false)
   const [qrTableError,setQrTableError] = useState('')
   const [qrMenuItems,setQrMenuItems] = useState<Array<{id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}>>([])
@@ -132,7 +132,7 @@ function App() {
         setQrTableError('This table QR code is invalid, inactive, or no longer available.')
         return
       }
-      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;cafe_slug?:string;slug?:string}
+      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;active_pin?:string|null;cafe_slug?:string;slug?:string}
       setQrTableInfo(tableInfo)
       setQrMenuLoading(true)
       setQrMenuError('')
@@ -202,10 +202,10 @@ function App() {
             <div style={{fontSize:12,color:'#78716c',fontWeight:700,letterSpacing:1}}>YOUR TABLE</div>
             <div style={{fontSize:30,fontWeight:800,color:'#047857',marginTop:5}}>{qrTableInfo.table_name}</div>
           </div>
-          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu, add items to your cart, and ask café staff for an order PIN.</p>
+          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu. When café staff activate your table, its session code appears automatically.</p>
           {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
           {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
-          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} initialPin={guestPinFromUrl} />
+          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} initialPin={qrTableInfo.active_pin || ''} />
           <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Payment is not collected here. The café team will confirm your order.</p>
         </>}
         <a href="/" style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>BrewOS home</a>
@@ -472,7 +472,7 @@ function App() {
 <OwnerOrders cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
 <OwnerPOS cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} /><div style={{borderTop:'1px solid #eee9df',paddingTop:18,marginTop:18}}>
 <h3 style={{fontSize:16,margin:'0 0 12px'}}>Tables & QR setup</h3>
-<p style={{fontSize:12,color:'#78716c'}}>Create tables and issue a one-time guest order PIN when a customer is ready to order.</p>
+<p style={{fontSize:12,color:'#78716c'}}>Create tables and activate or end a table session. Customers see the active session code automatically after scanning the table QR.</p>
 <label style={{fontSize:12}}>Restaurant
 <select value={tableCafeId} onChange={e=>{setTableCafeId(e.target.value);void loadTableSetup(e.target.value)}} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,background:'#fff'}}>
 <option value="">Select restaurant</option>{ownerCafes.filter(cafe=>cafe.status==='approved').map(cafe=><option key={cafe.id} value={cafe.id}>{cafe.name}</option>)}
@@ -497,7 +497,7 @@ function App() {
 <div style={{display:'grid',gap:8,marginTop:14}}>
 <b style={{fontSize:13}}>Existing tables</b>
 {tableBusy&&<small>Loading tables…</small>}
-{diningTables.filter(table=>table.branch_id===tableBranchId).map(table=><div key={table.id} style={{border:'1px solid #e7e5e4',borderRadius:9,padding:10,fontSize:12}}><div style={{display:'flex',justifyContent:'space-between',gap:10}}><b>{table.table_name}</b><span style={{color:table.active?'#047857':'#78716c'}}>{table.active?'Active':'Inactive'}</span></div>{table.active&&<TablePinIssuer tableId={table.id} qrToken={table.id===newTableId?newTableToken:undefined}/>}</div>)}
+{diningTables.filter(table=>table.branch_id===tableBranchId).map(table=><div key={table.id} style={{border:'1px solid #e7e5e4',borderRadius:9,padding:10,fontSize:12}}><div style={{display:'flex',justifyContent:'space-between',gap:10}}><b>{table.table_name}</b><span style={{color:table.active?'#047857':'#78716c'}}>{table.active?'Active':'Inactive'}</span></div>{table.active&&<TablePinIssuer tableId={table.id}/ >}</div>)}
 {!tableBusy&&tableCafeId&&diningTables.filter(table=>table.branch_id===tableBranchId).length===0&&<small>No tables created for this branch yet.</small>}
 </div></>}
 </div><div style={{borderTop:'1px solid #eee9df',paddingTop:18}}><h3 style={{fontSize:16,margin:'0 0 12px'}}>Add a restaurant</h3><form onSubmit={createCafe} style={{display:'grid',gap:11}}><label style={{fontSize:12}}>Restaurant name<input required minLength={2} maxLength={100} value={cafeName} onChange={e=>{setCafeName(e.target.value);setCafeSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))}} placeholder="e.g. The Green Cup" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>Restaurant web address<input required maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={cafeSlug} onChange={e=>setCafeSlug(e.target.value.toLowerCase())} placeholder="the-green-cup" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/><small style={{color:'#78716c'}}>Lowercase letters, numbers and hyphens only.</small></label><label style={{fontSize:12}}>Description (optional)<textarea maxLength={500} value={cafeDescription} onChange={e=>setCafeDescription(e.target.value)} placeholder="Tell guests a little about your restaurant" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,minHeight:70}}/></label><label style={{fontSize:12}}>Contact phone (optional)<input type="tel" maxLength={25} value={cafePhone} onChange={e=>setCafePhone(e.target.value)} placeholder="Restaurant contact number" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>First branch name<input required maxLength={100} value={branchName} onChange={e=>setBranchName(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}}/></label><label style={{fontSize:12}}>Branch address (optional)<textarea maxLength={300} value={branchAddress} onChange={e=>setBranchAddress(e.target.value)} placeholder="Street, area, city" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5,minHeight:65}}/></label><button className="btn" disabled={ownerBusy||!supabaseConfigured} style={{justifyContent:'center'}}>{ownerBusy?'Creating…':'Create restaurant'} <ArrowRight size={15}/></button></form></div>{ownerMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{ownerMessage}</p>}<button className="outline-btn" style={{width:'100%',marginTop:10}} onClick={()=>setOwnerOpen(false)}>Close</button></div></div>}
