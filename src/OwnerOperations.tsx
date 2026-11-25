@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { ChefHat, ClipboardList, Users, BarChart3, Gift, RefreshCw, Clock3, CheckCircle2, Circle, Search } from 'lucide-react'
+import { ChefHat, ClipboardList, Users, BarChart3, Gift, RefreshCw, Clock3, Search } from 'lucide-react'
 
 type Cafe = { id:string; name:string }
 type Branch = { id:string; name:string }
@@ -25,7 +25,6 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const [loyalty,setLoyalty]=useState<Loyalty[]>([])
  const [loading,setLoading]=useState(false)
  const [message,setMessage]=useState('')
- const [search,setSearch]=useState('')
  const [staffName,setStaffName]=useState('')
  const [staffPhone,setStaffPhone]=useState('')
  const [staffRole,setStaffRole]=useState('waiter')
@@ -143,7 +142,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   if(!supabase||!redeemAccount)return
   const points=Math.floor(Number(redeemPoints))
   if(!Number.isFinite(points)||points<=0){setMessage('Enter a valid number of points.');return}
-  setBusy(true);const {data,error}=await supabase.rpc('redeem_customer_loyalty_points',{p_account_id:redeemAccount,p_points:points})
+  setBusy(true);const {error}=await supabase.rpc('redeem_customer_loyalty_points',{p_account_id:redeemAccount,p_points:points})
   setBusy(false);if(error)setMessage(error.message);else{setMessage('Reward redemption recorded.');setRedeemPoints('');await refresh()}
  }
 
@@ -193,6 +192,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
     <input required value={staffName} onChange={e=>setStaffName(e.target.value)} maxLength={100} placeholder="Staff full name" style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}/>
     <input value={staffPhone} onChange={e=>setStaffPhone(e.target.value)} maxLength={20} placeholder="Phone (optional)" style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}/>
     <select value={staffRole} onChange={e=>setStaffRole(e.target.value)} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}>{roleNames.map(r=><option key={r} value={r}>{r[0].toUpperCase()+r.slice(1)}</option>)}</select>
+    <select value={staffBranch||branchId} onChange={e=>setStaffBranch(e.target.value)} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}>{branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
     <button className="btn" disabled={busy}>Add staff member</button>
    </form>
    <div style={{display:'grid',gap:8,marginTop:12}}>{staff.map(person=><article key={person.id} style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',padding:11,border:'1px solid #e7e5e4',borderRadius:10}}>
