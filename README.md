@@ -104,3 +104,10 @@ The guest-order and owner-order code paths are implemented, but a successful fro
 ## Brand
 
 Emerald `#059669`, cream `#F5EBD8`, charcoal `#292524`.
+
+## Phase 2 — POS & Billing (initial slice)
+
+- The owner workspace includes a counter POS screen for selecting available menu items, adjusting quantities, choosing dine-in/takeaway/delivery, and creating an order.
+- POS orders are created atomically through the `create_pos_order` RPC. The database re-reads current menu prices and checks item availability; browser-submitted prices are never trusted.
+- POS orders appear in the existing Incoming orders view and share the same order lifecycle as QR guest orders.
+- This initial slice records an order and bill total only. Payment collection/reconciliation, configurable tax, discounts, split tenders, receipt printing, and refunds are not implemented yet.
