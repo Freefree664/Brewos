@@ -179,8 +179,8 @@ function App() {
   }, [qrTokenFromUrl])
   const t = copy[lang]
   if (qrTokenFromUrl) {
-    return <div style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:24,background:'#f7f5f0',fontFamily:'inherit'}}>
-      <main style={{width:'100%',maxWidth:460,background:'#fff',border:'1px solid #e7e5e4',borderRadius:20,padding:28,textAlign:'center',boxShadow:'0 12px 40px rgba(0,0,0,.06)'}}>
+    return <div className="guest-page-shell">
+      <main className="guest-page-card">
         <div style={{width:52,height:52,margin:'0 auto 16px',borderRadius:16,display:'grid',placeItems:'center',background:'#ecfdf5',color:'#047857'}}><Coffee size={25}/></div>
         <div style={{fontSize:12,letterSpacing:2,fontWeight:800,color:'#78716c'}}>BREWOS · TABLE CHECK-IN</div>
         <h1 style={{fontSize:28,margin:'10px 0 8px',color:'#292524'}}>Welcome</h1>
