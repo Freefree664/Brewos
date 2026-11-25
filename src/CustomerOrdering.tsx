@@ -42,7 +42,7 @@ export function CustomerOrdering({token,items,sessionActive}:Props){
  async function placeOrder(){
   if(!supabase){setMessage('Ordering is temporarily unavailable. Please ask café staff for help.');return}
   if(!sessionActive){setMessage('This table is not open for ordering yet. Please wait for café staff to activate it.');return}
-  if(!/^\\d{6}$/.test(sessionPin)){setMessage('Enter the six-digit code provided by café staff.');return}
+  if(!/^\d{6}$/.test(sessionPin)){setMessage('Enter the six-digit code provided by café staff.');return}
   if(!cartItems.length){setMessage('Please add at least one dish to your order.');return}
   setBusy(true);setMessage('')
   try{
@@ -87,8 +87,8 @@ export function CustomerOrdering({token,items,sessionActive}:Props){
    <label className="guest-field">Your name <span>Optional</span><input value={customerName} onChange={e=>setCustomerName(e.target.value.slice(0,100))} maxLength={100} placeholder="Name for your order"/></label>
     <label className="guest-field">Mobile number <span>Optional · Add it to earn reward points</span><input type="tel" value={customerPhone} onChange={e=>setCustomerPhone(e.target.value.slice(0,20))} maxLength={20} placeholder="e.g. +91 98765 43210"/></label>
     <label className="guest-field">Special instructions <span>Optional</span><textarea value={notes} onChange={e=>setNotes(e.target.value.slice(0,500))} placeholder="Allergies or preparation preferences?"/></label>
-   <label className="guest-field">Six-digit code from café staff<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={sessionPin} onChange={e=>setSessionPin(e.target.value.replace(/\\D/g,'').slice(0,6))} placeholder="Enter table code" /></label>
-   <button type="button" className="guest-place-order" onClick={()=>void placeOrder()} disabled={busy||!cartItems.length||!sessionActive||!/^\\d{6}$/.test(sessionPin)||!supabase}>{busy?'Sending your order…':'Place order · '+rupees(total)}</button>
+   <label className="guest-field">Six-digit code from café staff<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={sessionPin} onChange={e=>setSessionPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="Enter table code" /></label>
+   <button type="button" className="guest-place-order" onClick={()=>void placeOrder()} disabled={busy||!cartItems.length||!sessionActive||!/^\d{6}$/.test(sessionPin)||!supabase}>{busy?'Sending your order…':'Place order · '+rupees(total)}</button>
    <p className="guest-payment-note">No payment is collected here. Your server will help with payment.</p>
   </div>}
   {message&&<p role="status" className="guest-message">{message}</p>}
