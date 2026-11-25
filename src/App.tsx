@@ -109,6 +109,12 @@ function App() {
   useEffect(() => {
     if (!qrTokenFromUrl) return
     let active = true
+    // Keep the one-time activation code in component state, not in browser history.
+    if (guestPinFromUrl) {
+      const safeUrl = new URL(window.location.href)
+      safeUrl.searchParams.delete('pin')
+      window.history.replaceState({}, '', safeUrl.toString())
+    }
     async function loadPublicTableInfo() {
       if (!supabase) {
         setQrTableError('The table page is not connected to the service yet.')
