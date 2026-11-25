@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { ChefHat, ClipboardList, Clock3, LogOut, RefreshCw, UserRound } from 'lucide-react'
+import { ChefHat, ClipboardList, Clock3, LogOut, RefreshCw, UserRound, Wallet } from 'lucide-react'
 
 type StaffProfile = { id:string; cafe_id:string; branch_id:string|null; full_name:string; role:string; active:boolean }
 type StaffOrder = { id:string; order_number:number; status:string; order_type:string; total_paise:number; created_at:string; table_id:string|null; order_items:Array<{id:string;item_name_snapshot:string;quantity:number}> }
@@ -16,6 +16,7 @@ export default function StaffPortal({staff,onSignOut}:{staff:StaffProfile;onSign
  const [loading,setLoading]=useState(false)
  const [busy,setBusy]=useState(false)
  const [message,setMessage]=useState('')
+ const [paymentForms,setPaymentForms]=useState<Record<string,{amount:string;method:'cash'|'card'|'upi';reference:string}>>({})
 
  async function refresh(){
   if(!supabase)return
@@ -59,6 +60,18 @@ export default function StaffPortal({staff,onSignOut}:{staff:StaffProfile;onSign
   await refresh()
  }
 
+ function paymentForm(orderId:string){return paymentForms[orderId]||{amount:'',method:'cash' as const,reference:''}}
+ function setPaymentField(orderId:string,field:'amount'|'method'|'reference',value:string){setPaymentForms(current=>({ ...current,[orderId]:{...paymentForm(orderId),[field]:value} }))}
+ async function recordPayment(order:StaffOrder){
+  if(!supabase||busy)return
+  const form=paymentForm(order.id);const amount=Math.round(Number(form.amount)*100)
+  if(!Number.isFinite(amount)||amount<=0){setMessage('Enter a valid payment amount for order #'+order.order_number+'.');return}
+  setBusy(true);setMessage('')
+  const {data,error}=await supabase.rpc('staff_record_order_payment',{p_order_id:order.id,p_method:form.method,p_amount_paise:amount,p_reference:form.reference.trim()||null})
+  setBusy(false)
+  if(error)setMessage(error.message);else{const row=Array.isArray(data)?data[0]:data;setMessage('Payment recorded for order #'+order.order_number+'. Remaining due: '+money(Number(row?.due_paise||0))+'.');setPaymentForms(current=>({...current,[order.id]:{...paymentForm(order.id),amount:''}}))}
+  await refresh()
+ }
  async function punch(kind:'in'|'out'){
   if(!supabase||busy)return
   setBusy(true);setMessage('')
@@ -92,8 +105,16 @@ export default function StaffPortal({staff,onSignOut}:{staff:StaffProfile;onSign
      {staff.role==='kitchen'&&['pending','accepted'].includes(order.status)&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'preparing')}>Start preparation</button>}
      {staff.role==='kitchen'&&order.status==='preparing'&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'ready')}>Mark ready</button>}
      {staff.role==='waiter'&&order.status==='ready'&&order.table_id&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'served')}>Mark served</button>}
+     {staff.role==='manager'&&(['pending','accepted','preparing','ready'].includes(order.status))&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,({pending:'accepted',accepted:'preparing',preparing:'ready',ready:'served'} as Record<string,string>)[order.status])}>Advance order</button>}
+     {['cashier','manager'].includes(staff.role)&&<div style={{display:'grid',gap:7,marginTop:11,paddingTop:10,borderTop:'1px solid #e7e5e4'}}>
+      <b style={{fontSize:12,display:'flex',alignItems:'center',gap:6}}><Wallet size={14}/> Record payment</b>
+      <select aria-label="Payment method" value={paymentForm(order.id).method} onChange={e=>setPaymentField(order.id,'method',e.target.value)} style={{padding:8,border:'1px solid #d6d3d1',borderRadius:7,background:'#fff'}}><option value="cash">Cash</option><option value="upi">UPI (verify first)</option><option value="card">Card</option></select>
+      <input aria-label="Payment amount in rupees" type="number" min="0.01" step="0.01" value={paymentForm(order.id).amount} onChange={e=>setPaymentField(order.id,'amount',e.target.value)} placeholder="Amount received (₹)" style={{padding:8,border:'1px solid #d6d3d1',borderRadius:7}}/>
+      <input aria-label="Payment reference" value={paymentForm(order.id).reference} maxLength={100} onChange={e=>setPaymentField(order.id,'reference',e.target.value)} placeholder="Transaction reference (optional)" style={{padding:8,border:'1px solid #d6d3d1',borderRadius:7}}/>
+      <button type="button" className="btn" disabled={busy} style={{width:'100%',justifyContent:'center'}} onClick={()=>void recordPayment(order)}>Record payment</button>
+     </div>}
     </article>)}{!orders.length&&<p style={{fontSize:12,color:'#78716c'}}>No active orders right now.</p>}</div>
-    <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Kitchen staff can accept and prepare orders, then mark them ready. Waiters can mark ready orders served only at tables assigned to them. Cashier and manager staff accounts currently have read-only order access; payment and manager controls remain in the owner workspace.</p>
+    <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Kitchen staff can accept and prepare orders, then mark them ready. Waiters can mark ready orders served only at tables assigned to them. Cashiers and managers can record branch payments; managers can also advance branch orders. UPI payments must be independently verified before recording.</p>
    </section>
    <section style={{marginTop:20,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:14}}>
     <div><h3 style={{fontSize:14,display:'flex',gap:7,alignItems:'center'}}><Clock3 size={16}/> Upcoming shifts</h3>{shifts.map(shift=><p key={shift.id} style={{fontSize:11,borderBottom:'1px solid #eee',padding:'7px 0'}}>{new Date(shift.starts_at).toLocaleString()} – {new Date(shift.ends_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>)}{!shifts.length&&<small style={{color:'#78716c'}}>No shifts scheduled.</small>}</div>
