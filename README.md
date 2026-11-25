@@ -49,6 +49,8 @@ For a new Supabase project, review and apply migrations in numeric order:
 12. `0012_restore_owner_menu_image_policies.sql`
 13. `0013_pos_order_creation.sql`
 14. `0014_pos_discounts_and_payments.sql`
+15. `0015_table_sessions_and_guest_order_tracking.sql`
+16. `0016_secure_session_codes_disable_legacy_pin.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
 
@@ -114,3 +116,12 @@ Emerald `#059669`, cream `#F5EBD8`, charcoal `#292524`.
 - Atomic database order creation recalculates menu prices and discounts server-side.
 - Manual cash/card/UPI payment ledger supports partial and split tender entries, with balance-due checks and owner/manager authorization.
 - Printable bill/receipt view. No automated payment gateway, tax engine, refunds or settlement reconciliation yet.
+
+
+## Table sessions and guest order tracking
+
+- Owner/manager starts or ends a table session from Tables & QR setup.
+- Each active session has one six-digit code. The static table QR page displays that code automatically while the session is active; ending the session invalidates it.
+- Customers can place multiple orders during the same active table session without requesting a new code for every order.
+- After placing an order, the guest page polls a QR-token-scoped status RPC and shows the order timeline through confirmation, preparation, ready, served and completion.
+- The legacy one-time PIN issuer is disabled. The public session code is intentionally visible only to a visitor holding that table's unguessable QR token; anyone with a copy of the table QR can order while the session is open.
