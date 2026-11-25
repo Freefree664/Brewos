@@ -54,6 +54,7 @@ For a new Supabase project, review and apply migrations in numeric order:
 17. `0017_subscription_plan_pricing_update.sql`
 18. `0018_restaurant_upi_and_pos_customer_contact.sql`
 19. `0019_guest_digital_bills_and_upi_qr.sql`
+20. `0020_restrict_pos_rpc_anon_access.sql`
 
 For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
 
