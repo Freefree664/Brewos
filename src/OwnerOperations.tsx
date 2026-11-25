@@ -138,10 +138,6 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   }
   setBusy(false)
  }
- function openKitchenFullScreen(){
-  const target=document.getElementById('brewos-kitchen-display')
-  if(target?.requestFullscreen)void target.requestFullscreen().catch(()=>setMessage('Full-screen mode was blocked by this browser.'))
- }
  async function setOrderStatus(order:Order,status:string){
   if(!supabase)return
   setBusy(true);const {error}=await supabase.from('orders').update({status}).eq('id',order.id).eq('cafe_id',cafeId)
