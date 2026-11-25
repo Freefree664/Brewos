@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 type MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}
 type Props={token:string;items:MenuItem[];initialPin?:string}
 const rupees=(paise:number)=>'₹'+(paise/100).toLocaleString('en-IN',{maximumFractionDigits:2})
@@ -55,8 +56,8 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
  </section>
 }
 
-export function TablePinIssuer({tableId}:{tableId:string}){
- const [pin,setPin]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('')
+export function TablePinIssuer({tableId,qrToken}:{tableId:string;qrToken?:string}){
+ const [pin,setPin]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[guestLink,setGuestLink]=useState('')
  async function issuePin(){
   if(!supabase)return
   setBusy(true);setMessage('')
@@ -64,10 +65,10 @@ export function TablePinIssuer({tableId}:{tableId:string}){
   setBusy(false);if(error){setMessage(error.message);return}
   const result=data as {pin?:string;expires_in_seconds?:number}|null
   if(!result?.pin){setMessage('Could not issue a PIN.');return}
-  setPin(result.pin);setMessage('Share this PIN with the guest. It expires in 10 minutes and works for one order.')
+  setPin(result.pin);setMessage('This one-time activation expires in 10 minutes and works for one order.');if(qrToken){const url=new URL(window.location.origin+'/');url.searchParams.set('table',qrToken);url.searchParams.set('pin',result.pin);setGuestLink(url.toString())}
  }
  return <div style={{marginTop:10}}><button type="button" onClick={()=>void issuePin()} disabled={busy} style={{padding:'8px 11px',border:'1px solid #d6d3d1',borderRadius:8,background:'#fff',fontSize:12,fontWeight:700}}>{busy?'Creating PIN…':'Issue guest order PIN'}</button>
-  {pin&&<div style={{marginTop:8,padding:10,borderRadius:8,background:'#ecfdf5',color:'#065f46'}}><b style={{fontSize:20,letterSpacing:4}}>{pin}</b><button type="button" onClick={()=>void navigator.clipboard?.writeText(pin)} style={{marginLeft:10,padding:'5px 8px',border:0,borderRadius:6}}>Copy</button></div>}
+  {pin&&<div style={{marginTop:8,padding:12,borderRadius:12,background:'#f0fdf8',color:'#065f46',border:'1px solid #b7ecd4'}}><b style={{fontSize:20,letterSpacing:4}}>{pin}</b><button type="button" onClick={()=>void navigator.clipboard?.writeText(pin)} style={{marginLeft:10,padding:'6px 9px',border:0,borderRadius:7,background:'#d9f8e8',color:'#065f46',fontWeight:700}}>Copy code</button>{guestLink&&<div style={{marginTop:12,textAlign:'center'}}><p style={{fontSize:11,fontWeight:700}}>Guest scan · activation code auto-filled</p><div style={{display:'inline-block',padding:10,background:'#fff',borderRadius:10}}><QRCodeSVG value={guestLink} size={160} level="M" includeMargin/></div><button type="button" onClick={()=>void navigator.clipboard?.writeText(guestLink)} style={{display:'block',margin:'8px auto',padding:'8px 12px',border:0,borderRadius:8,background:'#6c58c8',color:'#fff',fontWeight:700}}>Copy guest link</button><small style={{display:'block',fontSize:10,color:'#64748b'}}>This QR is valid for 10 minutes and one order only.</small></div>}</div>}
   {message&&<p role="status" style={{fontSize:11,color:'#78716c',lineHeight:1.4}}>{message}</p>}
  </div>
 }
