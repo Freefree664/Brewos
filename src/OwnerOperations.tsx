@@ -10,6 +10,8 @@ type Order = { id:string; order_number:number; status:string; order_type:string;
 type DiningTable = { id:string; table_name:string; assigned_waiter_id:string|null }
 type Loyalty = { id:string; customer_name:string; customer_phone:string; points_balance:number; total_orders:number; total_spend_paise:number }
 type Shift = { id:string; staff_id:string; starts_at:string; ends_at:string }
+type Attendance = { id:string; staff_id:string; check_in_at:string; check_out_at:string|null }
+type LeaveRequest = { id:string; staff_id:string; starts_on:string; ends_on:string; reason:string; status:string }
 
 const money=(paise:number)=>'₹'+(paise/100).toLocaleString('en-IN',{maximumFractionDigits:2})
 const roleNames=['waiter','kitchen','manager','cashier']
@@ -25,6 +27,12 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const [tables,setTables]=useState<DiningTable[]>([])
  const [loyalty,setLoyalty]=useState<Loyalty[]>([])
  const [shifts,setShifts]=useState<Shift[]>([])
+ const [attendanceRows,setAttendanceRows]=useState<Attendance[]>([])
+ const [leaveRequests,setLeaveRequests]=useState<LeaveRequest[]>([])
+ const [leaveStaff,setLeaveStaff]=useState('')
+ const [leaveStart,setLeaveStart]=useState('')
+ const [leaveEnd,setLeaveEnd]=useState('')
+ const [leaveReason,setLeaveReason]=useState('')
  const [loading,setLoading]=useState(false)
  const [message,setMessage]=useState('')
  const [staffName,setStaffName]=useState('')
@@ -70,7 +78,9 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    supabase.from('orders').select('id,order_number,status,order_type,total_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
    supabase.from('dining_tables').select('id,table_name,assigned_waiter_id').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('created_at'),
    supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250),
-   supabase.from('staff_shifts').select('id,staff_id,starts_at,ends_at').eq('cafe_id',cafeId).eq('branch_id',branchId).gte('ends_at',new Date().toISOString()).order('starts_at').limit(30)
+   supabase.from('staff_shifts').select('id,staff_id,starts_at,ends_at').eq('cafe_id',cafeId).eq('branch_id',branchId).gte('ends_at',new Date().toISOString()).order('starts_at').limit(30),
+   supabase.from('staff_attendance').select('id,staff_id,check_in_at,check_out_at').eq('cafe_id',cafeId).order('check_in_at',{ascending:false}).limit(30),
+   supabase.from('staff_leave_requests').select('id,staff_id,starts_on,ends_on,reason,status').eq('cafe_id',cafeId).order('created_at',{ascending:false}).limit(50)
   ])
   setLoading(false)
   const err=results.find(x=>x.error)?.error
@@ -80,6 +90,8 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   setTables((results[2].data||[]) as DiningTable[])
   setLoyalty((results[3].data||[]) as Loyalty[])
   setShifts((results[4].data||[]) as Shift[])
+  setAttendanceRows((results[5].data||[]) as Attendance[])
+  setLeaveRequests((results[6].data||[]) as LeaveRequest[])
  }
  const activeOrders=useMemo(()=>orders.filter(o=>!['completed','cancelled'].includes(o.status)),[orders])
  const kitchenOrders=useMemo(()=>activeOrders.filter(o=>['pending','accepted','preparing','ready'].includes(o.status)),[activeOrders])
@@ -117,6 +129,22 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   if(!supabase)return
   setBusy(true);const {error}=await supabase.from('staff_members').update({active:!person.active}).eq('id',person.id).eq('cafe_id',cafeId)
   setBusy(false);if(error)setMessage(error.message);else await refresh()
+ }
+ async function createLeave(e:React.FormEvent){
+  e.preventDefault()
+  if(!supabase||!leaveStaff||!leaveStart||!leaveEnd||!leaveReason.trim())return
+  setBusy(true);const {error}=await supabase.from('staff_leave_requests').insert({cafe_id:cafeId,staff_id:leaveStaff,starts_on:leaveStart,ends_on:leaveEnd,reason:leaveReason.trim()})
+  setBusy(false);if(error)setMessage(error.message);else{setMessage('Leave request added for review.');setLeaveReason('');await refresh()}
+ }
+ async function reviewLeave(request:LeaveRequest,status:'approved'|'rejected'){
+  if(!supabase)return
+  setBusy(true);const {error}=await supabase.from('staff_leave_requests').update({status,reviewed_at:new Date().toISOString()}).eq('id',request.id).eq('cafe_id',cafeId)
+  setBusy(false);if(error)setMessage(error.message);else await refresh()
+ }
+ function exportAttendance(){
+  const rows=[['Staff','Check in','Check out','Minutes'],...attendanceRows.map(row=>{const start=new Date(row.check_in_at),end=row.check_out_at?new Date(row.check_out_at):new Date();return [staff.find(s=>s.id===row.staff_id)?.full_name||'Staff',start.toISOString(),row.check_out_at?end.toISOString():'Open',String(Math.max(0,Math.round((end.getTime()-start.getTime())/60000)))]})]
+  const csv=rows.map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(',')).join('\\n')
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='brewos-attendance-report.csv';link.click();URL.revokeObjectURL(url)
  }
  async function createShift(e:React.FormEvent){
   e.preventDefault()
@@ -225,7 +253,12 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    </form>
    <h4 style={{fontSize:14,marginTop:18}}>Upcoming shifts</h4>
    <div style={{display:'grid',gap:7}}>{shifts.map(shift=>{const person=staff.find(s=>s.id===shift.staff_id);return <div key={shift.id} style={{display:'flex',justifyContent:'space-between',gap:8,padding:10,border:'1px solid #e7e5e4',borderRadius:9,fontSize:11}}><b>{person?.full_name||'Staff member'}</b><span>{new Date(shift.starts_at).toLocaleString()} – {new Date(shift.ends_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>})}{!shifts.length&&<p style={{fontSize:11,color:'#78716c'}}>No upcoming shifts scheduled.</p>}</div>
-   <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Staff profiles, role labels, shifts and attendance are managed here. Individual staff sign-in accounts and role-restricted app sessions are not yet configured.</p>
+   <h4 style={{fontSize:14,marginTop:18}}>Leave management</h4>
+   <form onSubmit={createLeave} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:8,padding:12,border:'1px solid #e7e5e4',borderRadius:11}}><select required value={leaveStaff} onChange={e=>setLeaveStaff(e.target.value)} style={{padding:9,border:'1px solid #d6d3d1',borderRadius:8}}><option value=''>Select staff</option>{staff.map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}</select><input required type='date' value={leaveStart} onChange={e=>setLeaveStart(e.target.value)} style={{padding:9,border:'1px solid #d6d3d1',borderRadius:8}}/><input required type='date' min={leaveStart||undefined} value={leaveEnd} onChange={e=>setLeaveEnd(e.target.value)} style={{padding:9,border:'1px solid #d6d3d1',borderRadius:8}}/><input required maxLength={500} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} placeholder='Reason for leave' style={{padding:9,border:'1px solid #d6d3d1',borderRadius:8}}/><button className='btn' disabled={busy}>Add leave request</button></form>
+   <div style={{display:'grid',gap:7,marginTop:10}}>{leaveRequests.map(request=><div key={request.id} style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',padding:10,border:'1px solid #e7e5e4',borderRadius:9,fontSize:11}}><div style={{flex:1,minWidth:150}}><b>{staff.find(s=>s.id===request.staff_id)?.full_name||'Staff member'}</b><div>{request.starts_on} – {request.ends_on} · {request.reason}</div></div><b style={{textTransform:'capitalize'}}>{request.status}</b>{request.status==='pending'&&<><button type='button' className='btn' style={{width:'auto',padding:'7px 9px'}} disabled={busy} onClick={()=>void reviewLeave(request,'approved')}>Approve</button><button type='button' className='outline-btn' style={{width:'auto',padding:'7px 9px'}} disabled={busy} onClick={()=>void reviewLeave(request,'rejected')}>Reject</button></>}</div>)}</div>
+   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginTop:18}}><h4 style={{fontSize:14,margin:0}}>Attendance report · latest 30 records</h4><button type='button' className='outline-btn' style={{width:'auto',padding:'7px 9px'}} onClick={exportAttendance}>Export CSV</button></div>
+   <div style={{display:'grid',gap:6,marginTop:8}}>{attendanceRows.map(row=>{const start=new Date(row.check_in_at),end=row.check_out_at?new Date(row.check_out_at):new Date();const mins=Math.max(0,Math.round((end.getTime()-start.getTime())/60000));return <div key={row.id} style={{display:'flex',justifyContent:'space-between',gap:8,flexWrap:'wrap',padding:9,background:'#f8faf9',borderRadius:8,fontSize:10}}><b>{staff.find(s=>s.id===row.staff_id)?.full_name||'Staff member'}</b><span>{start.toLocaleString()} · {row.check_out_at?Math.floor(mins/60)+'h '+mins%60+'m':'Currently checked in'}</span></div>})}{!attendanceRows.length&&<p style={{fontSize:11,color:'#78716c'}}>No attendance records yet.</p>}</div>
+   <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Staff profiles, role labels, shifts, attendance, leave and reports are managed here. Individual staff sign-in accounts and role-restricted app sessions are not yet configured.</p>
   </div>}
   {tab==='analytics'&&<div style={{marginTop:18}}>
    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Sales & service analytics</h3><div style={{display:'flex',gap:7}}><select value={analyticsRange} onChange={e=>setAnalyticsRange(e.target.value as typeof analyticsRange)} style={{padding:8,border:'1px solid #d6d3d1',borderRadius:8}}><option value='today'>Today</option><option value='7days'>Last 7 days</option><option value='30days'>Last 30 days</option><option value='year'>Last year</option></select><button type='button' className='outline-btn' style={{width:'auto',padding:'8px 10px'}} onClick={exportAnalytics}>Export CSV</button></div></div><p style={{fontSize:11,color:'#78716c'}}>Based on up to the latest 1,000 orders for this branch. Revenue shown is completed order value, not independently verified payment settlement.</p>
