@@ -47,5 +47,6 @@ begin
 end;
 $function$;
 
+revoke all on function public.create_pos_order_v2(uuid,uuid,public.order_type,text,text,jsonb,integer) from public,anon,authenticated;
 revoke all on function public.create_pos_order_v2(uuid,uuid,public.order_type,text,text,jsonb,integer,text) from public;
 grant execute on function public.create_pos_order_v2(uuid,uuid,public.order_type,text,text,jsonb,integer,text) to authenticated;
