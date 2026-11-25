@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase, supabaseConfigured } from './lib/supabase'
-import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, Package, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap, UtensilsCrossed, Sparkles } from 'lucide-react'
+import { ArrowRight, BarChart3, Check, ChevronDown, Coffee, Globe2, LayoutDashboard, Menu, QrCode, ShieldCheck, ShoppingBag, Users, X, Zap, UtensilsCrossed, Sparkles } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import MenuManager from './MenuManager'
 import OwnerOrders from './OwnerOrders'
@@ -38,8 +38,9 @@ const features = [
   {icon:LayoutDashboard,title:'Owner menu tools',desc:'Available now: manage restaurants, branches, menu items, photos, availability and private item-cost estimates.'},
   {icon:ShoppingBag,title:'Order management',desc:'Available now: review guest orders, update their status and receive browser alerts while the dashboard is open.'},
   {icon:ShieldCheck,title:'UPI subscriptions',desc:'Available now: scan a plan-specific UPI QR, submit the transaction reference and await administrator verification.'},
-  {icon:Coffee,title:'POS & kitchen tools',desc:'In development: cashier billing workflows and a dedicated kitchen order screen.'},
-  {icon:Package,title:'Team, inventory & insights',desc:'In development: staff scheduling, ingredient and stock tracking, and sales analytics.'}
+  {icon:Coffee,title:'POS & kitchen tools',desc:'Counter billing, payment recording and a dedicated kitchen order workflow.'},
+  {icon:Users,title:'Staff, waiter & analytics',desc:'Team roster, shifts, attendance, table assignments and sales insights.'},
+  {icon:Sparkles,title:'Customer loyalty',desc:'Reward returning guests with points earned on completed orders.'}
 ]
 
 function App() {
