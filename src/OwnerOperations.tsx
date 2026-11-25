@@ -5,8 +5,8 @@ import { ChefHat, ClipboardList, Users, BarChart3, Gift, RefreshCw, Clock3, Sear
 type Cafe = { id:string; name:string }
 type Branch = { id:string; name:string }
 type Staff = { id:string; full_name:string; phone:string|null; role:string; active:boolean; branch_id:string|null }
-type OrderItem = { id:string; item_name_snapshot:string; quantity:number }
-type Order = { id:string; order_number:number; status:string; order_type:string; total_paise:number; created_at:string; customer_name:string|null; customer_phone:string|null; table_id:string|null; order_items:OrderItem[] }
+type OrderItem = { id:string; item_name_snapshot:string; quantity:number; unit_price_paise:number; unit_cost_paise:number|null; line_total_paise:number }
+type Order = { id:string; order_number:number; status:string; order_type:string; total_paise:number; discount_paise:number; created_at:string; customer_name:string|null; customer_phone:string|null; table_id:string|null; order_items:OrderItem[] }
 type DiningTable = { id:string; table_name:string; assigned_waiter_id:string|null }
 type Loyalty = { id:string; customer_name:string; customer_phone:string; points_balance:number; total_orders:number; total_spend_paise:number }
 type Shift = { id:string; staff_id:string; starts_at:string; ends_at:string }
@@ -75,7 +75,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   setLoading(true);setMessage('')
   const results=await Promise.all([
    supabase.from('staff_members').select('id,full_name,phone,role,active,branch_id').eq('cafe_id',cafeId).order('full_name'),
-   supabase.from('orders').select('id,order_number,status,order_type,total_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
+   supabase.from('orders').select('id,order_number,status,order_type,total_paise,discount_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity,unit_price_paise,unit_cost_paise,line_total_paise)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
    supabase.from('dining_tables').select('id,table_name,assigned_waiter_id').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('created_at'),
    supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250),
    supabase.from('staff_shifts').select('id,staff_id,starts_at,ends_at').eq('cafe_id',cafeId).eq('branch_id',branchId).gte('ends_at',new Date().toISOString()).order('starts_at').limit(30),
@@ -104,6 +104,8 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const rangeOrders=orders.filter(o=>new Date(o.created_at)>=rangeStart)
  const completed=rangeOrders.filter(o=>o.status==='completed')
  const totalValue=completed.reduce((s,o)=>s+Number(o.total_paise||0),0)
+ const profitOrders=completed.filter(o=>(o.order_items||[]).length>0&&o.order_items.every(item=>item.unit_cost_paise!==null&&item.unit_cost_paise!==undefined))
+ const estimatedGrossProfit=profitOrders.reduce((sum,order)=>sum+order.order_items.reduce((orderProfit,item)=>orderProfit+(Number(item.unit_price_paise)-Number(item.unit_cost_paise))*item.quantity,0)-Number(order.discount_paise||0),0)
  const topItems=useMemo(()=>{
   const counts=new Map<string,number>()
   for(const order of rangeOrders)for(const item of order.order_items||[])counts.set(item.item_name_snapshot,(counts.get(item.item_name_snapshot)||0)+item.quantity)
@@ -178,7 +180,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   setBusy(false);if(error)setMessage(error.message);else await refresh()
  }
  function exportAnalytics(){
-  const rows=[['Order number','Status','Order type','Created at','Total rupees'],...rangeOrders.map(o=>[String(o.order_number),o.status,o.order_type,new Date(o.created_at).toISOString(),(o.total_paise/100).toFixed(2)])]
+  const rows=[['Order number','Status','Order type','Created at','Total rupees','Estimated item gross profit rupees'],...rangeOrders.map(o=>{const tracked=(o.order_items||[]).length>0&&o.order_items.every(item=>item.unit_cost_paise!==null&&item.unit_cost_paise!==undefined);const profit=tracked?o.order_items.reduce((sum,item)=>sum+(Number(item.unit_price_paise)-Number(item.unit_cost_paise))*item.quantity,0)-Number(o.discount_paise||0):'';return [String(o.order_number),o.status,o.order_type,new Date(o.created_at).toISOString(),(o.total_paise/100).toFixed(2),profit===''?'':(profit/100).toFixed(2)]})]
   const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(',')).join('\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='brewos-analytics.csv';link.click();URL.revokeObjectURL(url)
  }
@@ -262,10 +264,11 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Staff profiles, role labels, shifts, attendance, leave and reports are managed here. Individual staff sign-in accounts and role-restricted app sessions are not yet configured.</p>
   </div>}
   {tab==='analytics'&&<div style={{marginTop:18}}>
-   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Sales & service analytics</h3><div style={{display:'flex',gap:7}}><select value={analyticsRange} onChange={e=>setAnalyticsRange(e.target.value as typeof analyticsRange)} style={{padding:8,border:'1px solid #d6d3d1',borderRadius:8}}><option value='today'>Today</option><option value='7days'>Last 7 days</option><option value='30days'>Last 30 days</option><option value='year'>Last year</option></select><button type='button' className='outline-btn' style={{width:'auto',padding:'8px 10px'}} onClick={exportAnalytics}>Export CSV</button></div></div><p style={{fontSize:11,color:'#78716c'}}>Based on up to the latest 1,000 orders for this branch. Revenue shown is completed order value, not independently verified payment settlement.</p>
+   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Sales & service analytics</h3><div style={{display:'flex',gap:7}}><select value={analyticsRange} onChange={e=>setAnalyticsRange(e.target.value as typeof analyticsRange)} style={{padding:8,border:'1px solid #d6d3d1',borderRadius:8}}><option value='today'>Today</option><option value='7days'>Last 7 days</option><option value='30days'>Last 30 days</option><option value='year'>Last year</option></select><button type='button' className='outline-btn' style={{width:'auto',padding:'8px 10px'}} onClick={exportAnalytics}>Export CSV</button></div></div><p style={{fontSize:11,color:'#78716c'}}>Based on up to the latest 1,000 orders for this branch. Revenue is completed order value, not verified payment settlement. Estimated item gross profit uses the preparation-cost snapshot saved when each order was placed; it excludes rent, wages, utilities and other overheads.</p>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,marginTop:12}}>
-    {[['Orders in range',rangeOrders.length],['Completed orders',completed.length],['Completed value',money(totalValue)],['Average completed bill',completed.length?money(Math.round(totalValue/completed.length)):'₹0']].map(([label,value])=><div key={String(label)} style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><small style={{color:'#78716c'}}>{label}</small><b style={{display:'block',fontSize:20,marginTop:7}}>{value}</b></div>)}
+    {[['Orders in range',rangeOrders.length],['Completed orders',completed.length],['Completed value',money(totalValue)],['Average completed bill',completed.length?money(Math.round(totalValue/completed.length)):'₹0'],['Estimated item gross profit',profitOrders.length?money(estimatedGrossProfit):'Not available']].map(([label,value])=><div key={String(label)} style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><small style={{color:'#78716c'}}>{label}</small><b style={{display:'block',fontSize:20,marginTop:7}}>{value}</b></div>)}
    </div>
+   <p style={{fontSize:10,color:'#78716c',marginTop:8}}>Cost coverage: {profitOrders.length} of {completed.length} completed bills have preparation-cost snapshots. Older bills and items without a saved preparation cost are excluded from this estimate.</p>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:15,marginTop:16}}>
     <div style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><b style={{fontSize:13}}>Popular menu items</b>{topItems.map(([name,count])=><div key={name} style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,padding:'9px 0',borderBottom:'1px solid #f1f5f9'}}><span>{name}</span><b>{count} sold</b></div>)}{!topItems.length&&<p style={{fontSize:11,color:'#78716c'}}>No order items yet.</p>}</div>
     <div style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><b style={{fontSize:13}}>Orders by hour</b><div style={{display:'flex',alignItems:'end',gap:3,height:120,marginTop:15}}>{hourCounts.map((n,h)=><div key={h} title={h+':00 · '+n+' orders'} style={{flex:1,minWidth:3,height:(n/maxHour*100)+'%',background:'#059669',borderRadius:'3px 3px 0 0',opacity:n?1:.16}}/>)}</div><div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#78716c',marginTop:6}}><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div></div>
