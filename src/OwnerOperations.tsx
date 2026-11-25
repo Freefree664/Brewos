@@ -66,7 +66,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  useEffect(()=>{void refresh()},[cafeId,branchId])
  useEffect(()=>{
   if(!supabase||!cafeId||!branchId)return
-  const channel=supabase.channel('brewos-operations-'+cafeId+'-'+branchId)
+  const channel=supabase.channel('Rivantoq-operations-'+cafeId+'-'+branchId)
    .on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:'cafe_id=eq.'+cafeId},()=>void refresh())
    .subscribe()
   const timer=window.setInterval(()=>void refresh(),12000)
@@ -153,7 +153,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  function exportAttendance(){
   const rows=[['Staff','Check in','Check out','Minutes'],...attendanceRows.map(row=>{const start=new Date(row.check_in_at),end=row.check_out_at?new Date(row.check_out_at):new Date();return [staff.find(s=>s.id===row.staff_id)?.full_name||'Staff',start.toISOString(),row.check_out_at?end.toISOString():'Open',String(Math.max(0,Math.round((end.getTime()-start.getTime())/60000)))]})]
   const csv=rows.map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(',')).join('\\n')
-  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='brewos-attendance-report.csv';link.click();URL.revokeObjectURL(url)
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='Rivantoq-attendance-report.csv';link.click();URL.revokeObjectURL(url)
  }
  async function createShift(e:React.FormEvent){
   e.preventDefault()
@@ -202,7 +202,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  function exportAnalytics(){
   const rows=[['Order number','Status','Order type','Created at','Total rupees','Estimated item gross profit rupees'],...rangeOrders.map(o=>{const tracked=(o.order_items||[]).length>0&&o.order_items.every(item=>item.unit_cost_paise!==null&&item.unit_cost_paise!==undefined);const profit=tracked?o.order_items.reduce((sum,item)=>sum+(Number(item.unit_price_paise)-Number(item.unit_cost_paise))*item.quantity,0)-Number(o.discount_paise||0):'';return [String(o.order_number),o.status,o.order_type,new Date(o.created_at).toISOString(),(o.total_paise/100).toFixed(2),profit===''?'':(profit/100).toFixed(2)]})]
   const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(',')).join('\n')
-  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='brewos-analytics.csv';link.click();URL.revokeObjectURL(url)
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='Rivantoq-analytics.csv';link.click();URL.revokeObjectURL(url)
  }
  async function redeem(){
   if(!supabase||!redeemAccount)return
@@ -214,7 +214,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
 
  return <section style={{marginTop:24,border:'1px solid #e7e5e4',borderRadius:18,background:'#fff',padding:18}}>
   <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-   <div><span style={{fontSize:10,fontWeight:800,letterSpacing:1.4,color:'#047857'}}>BREWOS OPERATIONS SUITE</span><h2 style={{fontSize:21,margin:'5px 0'}}>Service & growth workspace</h2><p style={{fontSize:12,color:'#78716c',margin:0}}>Kitchen, floor, team, performance and returning guests.</p></div>
+   <div><span style={{fontSize:10,fontWeight:800,letterSpacing:1.4,color:'#047857'}}>Rivantoq OPERATIONS SUITE</span><h2 style={{fontSize:21,margin:'5px 0'}}>Service & growth workspace</h2><p style={{fontSize:12,color:'#78716c',margin:0}}>Kitchen, floor, team, performance and returning guests.</p></div>
    <button type="button" className="outline-btn" style={{width:'auto',padding:'9px 12px'}} onClick={()=>void refresh()} disabled={loading}><RefreshCw size={14}/>{loading?'Refreshing':'Refresh'}</button>
   </div>
   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginTop:15}}>
@@ -226,8 +226,8 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   </div>
   {message&&<p role="status" style={{padding:10,borderRadius:9,background:'#f0fdf4',color:'#166534',fontSize:12,overflowWrap:'anywhere'}}>{message}</p>}
   {!cafeId||!branchId?<p style={{fontSize:12,color:'#78716c',padding:18}}>Select an approved restaurant and branch to load operations.</p>:<>
-  {tab==='kitchen'&&<div id='brewos-kitchen-display' style={{marginTop:18,background:'#fff',padding:4}}>
-   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Kitchen display · {kitchenOrders.length} active</h3><div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:11,color:'#78716c'}}>Auto-refreshes every 12 seconds</span><button type='button' className='outline-btn' style={{width:'auto',padding:'7px 9px'}} onClick={()=>{const el=document.getElementById('brewos-kitchen-display');if(el?.requestFullscreen)void el.requestFullscreen().catch(()=>setMessage('Full-screen mode was blocked by this browser.'))}}>Full screen</button></div></div>
+  {tab==='kitchen'&&<div id='Rivantoq-kitchen-display' style={{marginTop:18,background:'#fff',padding:4}}>
+   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Kitchen display · {kitchenOrders.length} active</h3><div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:11,color:'#78716c'}}>Auto-refreshes every 12 seconds</span><button type='button' className='outline-btn' style={{width:'auto',padding:'7px 9px'}} onClick={()=>{const el=document.getElementById('Rivantoq-kitchen-display');if(el?.requestFullscreen)void el.requestFullscreen().catch(()=>setMessage('Full-screen mode was blocked by this browser.'))}}>Full screen</button></div></div>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:12,marginTop:12}}>
     {kitchenOrders.map(order=>{const age=Math.max(0,Math.floor((Date.now()-new Date(order.created_at).getTime())/60000));return <article key={order.id} style={{border:'1px solid #e7e5e4',borderRadius:14,padding:14,borderTop:'4px solid '+(age>=15?'#dc2626':order.status==='ready'?'#059669':'#d97706')}}>
      <div style={{display:'flex',justifyContent:'space-between',gap:8}}><b style={{fontSize:16}}>Order #{order.order_number}</b><span style={{fontSize:10,fontWeight:800,color:age>=15?'#b91c1c':'#78716c'}}><Clock3 size={12} style={{display:'inline',verticalAlign:'middle'}}/> {age} min</span></div>
@@ -262,7 +262,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
     <select value={staffBranch||branchId} onChange={e=>setStaffBranch(e.target.value)} style={{padding:10,border:'1px solid #d6d3d1',borderRadius:8}}>{branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
     <button className="btn" disabled={busy||!staffEmail.trim()}>Add staff & create invite</button>
    </form>
-   {staffInviteCode&&<div style={{marginTop:10,padding:13,border:'1px solid #fbbf24',background:'#fffbeb',borderRadius:11}}><b style={{fontSize:12}}>One-time staff invitation code</b><p style={{fontSize:11,color:'#78716c'}}>Send this code only to the staff member whose email you entered. They must create or sign in to a BrewOS account with that same email. The code expires after 7 days and can be used once.</p><code style={{display:'block',overflowWrap:'anywhere',fontSize:12,padding:10,background:'#fff',borderRadius:8}}>{staffInviteCode}</code><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8}} onClick={()=>void navigator.clipboard?.writeText(staffInviteCode)}>Copy invitation code</button><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8,marginLeft:8}} onClick={()=>setStaffInviteCode('')}>Hide code</button></div>}
+   {staffInviteCode&&<div style={{marginTop:10,padding:13,border:'1px solid #fbbf24',background:'#fffbeb',borderRadius:11}}><b style={{fontSize:12}}>One-time staff invitation code</b><p style={{fontSize:11,color:'#78716c'}}>Send this code only to the staff member whose email you entered. They must create or sign in to a Rivantoq account with that same email. The code expires after 7 days and can be used once.</p><code style={{display:'block',overflowWrap:'anywhere',fontSize:12,padding:10,background:'#fff',borderRadius:8}}>{staffInviteCode}</code><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8}} onClick={()=>void navigator.clipboard?.writeText(staffInviteCode)}>Copy invitation code</button><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8,marginLeft:8}} onClick={()=>setStaffInviteCode('')}>Hide code</button></div>}
    <div style={{display:'grid',gap:8,marginTop:12}}>{staff.map(person=><article key={person.id} style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',padding:11,border:'1px solid #e7e5e4',borderRadius:10}}>
     <div style={{flex:1,minWidth:130}}><b style={{fontSize:13}}>{person.full_name}</b><div style={{fontSize:10,color:'#78716c'}}>{person.role} · {person.phone||'No phone'} · {person.active?'Active':'Inactive'} · {person.auth_user_id?'Login active':person.invite_email?'Invite sent to '+person.invite_email:'No login invite'}</div></div>
     <button type="button" className="outline-btn" style={{width:'auto',padding:'7px 10px'}} disabled={busy||!person.active} onClick={()=>void attendance(person,'in')}>Check in</button>
