@@ -82,7 +82,9 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
    <div className="guest-checkout-head"><div><span>YOUR SELECTION</span><h3>Your order</h3></div><b>{count} items</b></div>
    {cartItems.map(x=><div className="guest-cart-row" key={x.id}><span>{x.name} × {cart[x.id]}</span><b>{rupees(x.price*cart[x.id])}</b></div>)}
    <div className="guest-total"><span>Subtotal</span><strong>{rupees(total)}</strong></div>
-   <label className="guest-field">Special instructions <span>Optional</span><textarea value={notes} onChange={e=>setNotes(e.target.value.slice(0,500))} placeholder="Allergies or preparation preferences?"/></label>
+   <label className="guest-field">Your name <span>Optional</span><input value={customerName} onChange={e=>setCustomerName(e.target.value.slice(0,100))} maxLength={100} placeholder="Name for your order"/></label>
+    <label className="guest-field">Mobile number <span>Optional · Add it to earn reward points</span><input type="tel" value={customerPhone} onChange={e=>setCustomerPhone(e.target.value.slice(0,20))} maxLength={20} placeholder="e.g. +91 98765 43210"/></label>
+    <label className="guest-field">Special instructions <span>Optional</span><textarea value={notes} onChange={e=>setNotes(e.target.value.slice(0,500))} placeholder="Allergies or preparation preferences?"/></label>
    <div className="guest-code-confirm"><span>Table activation code</span><b>{initialPin||'Waiting for activation'}</b></div>
    <button type="button" className="guest-place-order" onClick={()=>void placeOrder()} disabled={busy||!cartItems.length||!initialPin||!supabase}>{busy?'Sending your order…':'Place order · '+rupees(total)}</button>
    <p className="guest-payment-note">No payment is collected here. Your server will help with payment.</p>
