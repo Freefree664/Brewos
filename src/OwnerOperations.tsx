@@ -7,7 +7,7 @@ type Branch = { id:string; name:string }
 type Staff = { id:string; full_name:string; phone:string|null; role:string; active:boolean; branch_id:string|null }
 type OrderItem = { id:string; item_name_snapshot:string; quantity:number; unit_price_paise:number; unit_cost_paise:number|null; line_total_paise:number }
 type Order = { id:string; order_number:number; status:string; order_type:string; total_paise:number; discount_paise:number; created_at:string; customer_name:string|null; customer_phone:string|null; table_id:string|null; order_items:OrderItem[] }
-type DiningTable = { id:string; table_name:string; assigned_waiter_id:string|null }
+type DiningTable = { id:string; table_name:string; assigned_waiter_id:string|null; floor_position:number }
 type Loyalty = { id:string; customer_name:string; customer_phone:string; points_balance:number; total_orders:number; total_spend_paise:number }
 type Shift = { id:string; staff_id:string; starts_at:string; ends_at:string }
 type Attendance = { id:string; staff_id:string; check_in_at:string; check_out_at:string|null }
@@ -25,6 +25,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const [staff,setStaff]=useState<Staff[]>([])
  const [orders,setOrders]=useState<Order[]>([])
  const [tables,setTables]=useState<DiningTable[]>([])
+ const [dragTableId,setDragTableId]=useState('')
  const [loyalty,setLoyalty]=useState<Loyalty[]>([])
  const [shifts,setShifts]=useState<Shift[]>([])
  const [attendanceRows,setAttendanceRows]=useState<Attendance[]>([])
@@ -76,7 +77,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   const results=await Promise.all([
    supabase.from('staff_members').select('id,full_name,phone,role,active,branch_id').eq('cafe_id',cafeId).order('full_name'),
    supabase.from('orders').select('id,order_number,status,order_type,total_paise,discount_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity,unit_price_paise,unit_cost_paise,line_total_paise)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
-   supabase.from('dining_tables').select('id,table_name,assigned_waiter_id').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('created_at'),
+   supabase.from('dining_tables').select('id,table_name,assigned_waiter_id,floor_position').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('floor_position').order('created_at'),
    supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250),
    supabase.from('staff_shifts').select('id,staff_id,starts_at,ends_at').eq('cafe_id',cafeId).eq('branch_id',branchId).gte('ends_at',new Date().toISOString()).order('starts_at').limit(30),
    supabase.from('staff_attendance').select('id,staff_id,check_in_at,check_out_at').eq('cafe_id',cafeId).order('check_in_at',{ascending:false}).limit(30),
@@ -179,6 +180,19 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   setBusy(true);const {error}=await supabase.from('dining_tables').update({assigned_waiter_id:staffId||null}).eq('id',table.id).eq('cafe_id',cafeId)
   setBusy(false);if(error)setMessage(error.message);else await refresh()
  }
+ async function moveFloorTable(target:DiningTable){
+  if(!supabase||!dragTableId||dragTableId===target.id||busy)return
+  const source=tables.find(table=>table.id===dragTableId)
+  setDragTableId('')
+  if(!source)return
+  setBusy(true);setMessage('')
+  const first=await supabase.from('dining_tables').update({floor_position:target.floor_position}).eq('id',source.id).eq('cafe_id',cafeId)
+  if(first.error){setBusy(false);setMessage(first.error.message);return}
+  const second=await supabase.from('dining_tables').update({floor_position:source.floor_position}).eq('id',target.id).eq('cafe_id',cafeId)
+  setBusy(false)
+  if(second.error){setMessage('Table order partially updated. Refreshing the floor plan.');await refresh();return}
+  setMessage('Floor plan updated.');await refresh()
+ }
  function exportAnalytics(){
   const rows=[['Order number','Status','Order type','Created at','Total rupees','Estimated item gross profit rupees'],...rangeOrders.map(o=>{const tracked=(o.order_items||[]).length>0&&o.order_items.every(item=>item.unit_cost_paise!==null&&item.unit_cost_paise!==undefined);const profit=tracked?o.order_items.reduce((sum,item)=>sum+(Number(item.unit_price_paise)-Number(item.unit_cost_paise))*item.quantity,0)-Number(o.discount_paise||0):'';return [String(o.order_number),o.status,o.order_type,new Date(o.created_at).toISOString(),(o.total_paise/100).toFixed(2),profit===''?'':(profit/100).toFixed(2)]})]
   const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(',')).join('\n')
@@ -219,10 +233,10 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    </div>
   </div>}
   {tab==='waiter'&&<div style={{marginTop:18}}>
-   <h3 style={{margin:'0 0 5px',fontSize:17}}>Visual waiter floor plan</h3><p style={{fontSize:11,color:'#78716c'}}>Live table tiles show availability, active order status and waiter assignment. Arrange tables physically at the café; this board is a status view, not a measured floor blueprint.</p>
+   <h3 style={{margin:'0 0 5px',fontSize:17}}>Visual waiter floor plan</h3><p style={{fontSize:11,color:'#78716c'}}>Drag table tiles to arrange their positions, see live order status and assign waiters. The layout is saved per branch.</p>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:12,marginTop:12,padding:14,border:'1px dashed #cbd5e1',borderRadius:14,background:'#f8fafc'}}>
-    {tables.map(table=>{const order=orders.filter(o=>o.table_id===table.id&&!['completed','cancelled'].includes(o.status)).sort((a,b)=>+new Date(b.created_at)-+new Date(a.created_at))[0];const assigned=staff.find(s=>s.id===table.assigned_waiter_id);return <article key={table.id} style={{border:'1px solid '+(order?'#fbbf24':'#86efac'),borderRadius:14,padding:14,minHeight:142,background:order?'#fffbeb':'#f0fdf4',boxShadow:'0 2px 7px rgba(15,23,42,.04)'}}>
-     <div style={{display:'flex',justifyContent:'space-between',gap:8}}><b>{table.table_name}</b><span style={{fontSize:10,fontWeight:800,color:order?'#92400e':'#166534'}}>{order?order.status.toUpperCase():'AVAILABLE'}</span></div>
+    {tables.map(table=>{const order=orders.filter(o=>o.table_id===table.id&&!['completed','cancelled'].includes(o.status)).sort((a,b)=>+new Date(b.created_at)-+new Date(a.created_at))[0];const assigned=staff.find(s=>s.id===table.assigned_waiter_id);return <article key={table.id} draggable={!busy} onDragStart={()=>setDragTableId(table.id)} onDragOver={e=>e.preventDefault()} onDrop={()=>void moveFloorTable(table)} onDragEnd={()=>setDragTableId('')} title="Drag this table tile onto another table to swap positions" style={{border:'1px solid '+(order?'#fbbf24':'#86efac'),borderRadius:14,padding:14,minHeight:142,background:order?'#fffbeb':'#f0fdf4',boxShadow:'0 2px 7px rgba(15,23,42,.04)',cursor:busy?'default':'grab',opacity:dragTableId===table.id?.55:1}}>
+     <div style={{display:'flex',justifyContent:'space-between',gap:8}}><b>{table.table_name}</b><span style={{fontSize:10,fontWeight:800,color:order?'#92400e':'#166534'}}>{order?order.status.toUpperCase():'AVAILABLE'}</span></div><small style={{display:'block',color:'#78716c',marginTop:4}}>↕ Drag to rearrange</small>
      {order&&<p style={{fontSize:11,margin:'7px 0'}}>Order #{order.order_number} · {money(order.total_paise)}</p>}
      <label style={{display:'grid',gap:5,fontSize:10,marginTop:9}}>Assigned waiter<select value={table.assigned_waiter_id||''} onChange={e=>void assignWaiter(table,e.target.value)} style={{padding:9,border:'1px solid #d6d3d1',borderRadius:8,background:'#fff'}}><option value="">Unassigned</option>{staff.filter(s=>s.active&&s.role==='waiter').map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}</select></label>
      {assigned&&<small style={{color:'#78716c',display:'block',marginTop:6}}>Assigned to {assigned.full_name}</small>}
