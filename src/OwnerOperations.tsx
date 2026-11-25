@@ -96,7 +96,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   const counts=new Map<string,number>()
   for(const order of rangeOrders)for(const item of order.order_items||[])counts.set(item.item_name_snapshot,(counts.get(item.item_name_snapshot)||0)+item.quantity)
   return [...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6)
- },[orders])
+ },[rangeOrders])
  const hourCounts=useMemo(()=>{
   const counts=Array.from({length:24},()=>0)
   for(const o of rangeOrders)counts[new Date(o.created_at).getHours()]++
