@@ -36,6 +36,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const [loyaltySearch,setLoyaltySearch]=useState('')
  const [redeemAccount,setRedeemAccount]=useState('')
  const [redeemPoints,setRedeemPoints]=useState('')
+ const [analyticsRange,setAnalyticsRange]=useState<'today'|'7days'|'30days'|'year'>('7days')
 
  useEffect(()=>{if(!cafeId&&cafes.length)setCafeId(cafes[0].id)},[cafes,cafeId])
  useEffect(()=>{
@@ -64,7 +65,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   setLoading(true);setMessage('')
   const results=await Promise.all([
    supabase.from('staff_members').select('id,full_name,phone,role,active,branch_id').eq('cafe_id',cafeId).order('full_name'),
-   supabase.from('orders').select('id,order_number,status,order_type,total_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(300),
+   supabase.from('orders').select('id,order_number,status,order_type,total_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
    supabase.from('dining_tables').select('id,table_name,assigned_waiter_id').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('created_at'),
    supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250)
   ])
@@ -79,19 +80,24 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
  const activeOrders=useMemo(()=>orders.filter(o=>!['completed','cancelled'].includes(o.status)),[orders])
  const kitchenOrders=useMemo(()=>activeOrders.filter(o=>['pending','accepted','preparing','ready'].includes(o.status)),[activeOrders])
  const filteredLoyalty=useMemo(()=>loyalty.filter(x=>(x.customer_name+' '+x.customer_phone).toLowerCase().includes(loyaltySearch.toLowerCase().trim())),[loyalty,loyaltySearch])
- const todayOrders=orders.filter(o=>new Date(o.created_at).toDateString()===new Date().toDateString())
- const completed=todayOrders.filter(o=>o.status==='completed')
+ const rangeStart=new Date()
+ if(analyticsRange==='today')rangeStart.setHours(0,0,0,0)
+ else if(analyticsRange==='7days')rangeStart.setDate(rangeStart.getDate()-7)
+ else if(analyticsRange==='30days')rangeStart.setDate(rangeStart.getDate()-30)
+ else rangeStart.setFullYear(rangeStart.getFullYear()-1)
+ const rangeOrders=orders.filter(o=>new Date(o.created_at)>=rangeStart)
+ const completed=rangeOrders.filter(o=>o.status==='completed')
  const totalValue=completed.reduce((s,o)=>s+Number(o.total_paise||0),0)
  const topItems=useMemo(()=>{
   const counts=new Map<string,number>()
-  for(const order of orders)for(const item of order.order_items||[])counts.set(item.item_name_snapshot,(counts.get(item.item_name_snapshot)||0)+item.quantity)
+  for(const order of rangeOrders)for(const item of order.order_items||[])counts.set(item.item_name_snapshot,(counts.get(item.item_name_snapshot)||0)+item.quantity)
   return [...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6)
  },[orders])
  const hourCounts=useMemo(()=>{
   const counts=Array.from({length:24},()=>0)
-  for(const o of orders)counts[new Date(o.created_at).getHours()]++
+  for(const o of rangeOrders)counts[new Date(o.created_at).getHours()]++
   return counts
- },[orders])
+ },[rangeOrders])
  const maxHour=Math.max(1,...hourCounts)
 
  async function addStaff(e:React.FormEvent){
@@ -137,6 +143,11 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   if(!supabase)return
   setBusy(true);const {error}=await supabase.from('dining_tables').update({assigned_waiter_id:staffId||null}).eq('id',table.id).eq('cafe_id',cafeId)
   setBusy(false);if(error)setMessage(error.message);else await refresh()
+ }
+ function exportAnalytics(){
+  const rows=[['Order number','Status','Order type','Created at','Total rupees'],...rangeOrders.map(o=>[String(o.order_number),o.status,o.order_type,new Date(o.created_at).toISOString(),(o.total_paise/100).toFixed(2)])]
+  const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(',')).join('\\n')
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='brewos-analytics.csv';link.click();URL.revokeObjectURL(url)
  }
  async function redeem(){
   if(!supabase||!redeemAccount)return
@@ -211,9 +222,9 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Staff profiles, roles, shifts and attendance are managed here. Staff login accounts and per-user permission enforcement require separate invitations/authentication.</p>
   </div>}
   {tab==='analytics'&&<div style={{marginTop:18}}>
-   <h3 style={{margin:'0 0 5px',fontSize:17}}>Sales & service analytics</h3><p style={{fontSize:11,color:'#78716c'}}>Based on the latest 300 orders for this branch. Revenue shown is completed order value, not independently verified payment settlement.</p>
+   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}><h3 style={{margin:0,fontSize:17}}>Sales & service analytics</h3><div style={{display:'flex',gap:7}}><select value={analyticsRange} onChange={e=>setAnalyticsRange(e.target.value as typeof analyticsRange)} style={{padding:8,border:'1px solid #d6d3d1',borderRadius:8}}><option value='today'>Today</option><option value='7days'>Last 7 days</option><option value='30days'>Last 30 days</option><option value='year'>Last year</option></select><button type='button' className='outline-btn' style={{width:'auto',padding:'8px 10px'}} onClick={exportAnalytics}>Export CSV</button></div></div><p style={{fontSize:11,color:'#78716c'}}>Based on up to the latest 1,000 orders for this branch. Revenue shown is completed order value, not independently verified payment settlement.</p>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,marginTop:12}}>
-    {[['Orders today',todayOrders.length],['Completed today',completed.length],['Completed value today',money(totalValue)],['Average completed bill',completed.length?money(Math.round(totalValue/completed.length)):'₹0']].map(([label,value])=><div key={String(label)} style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><small style={{color:'#78716c'}}>{label}</small><b style={{display:'block',fontSize:20,marginTop:7}}>{value}</b></div>)}
+    {[['Orders in range',rangeOrders.length],['Completed orders',completed.length],['Completed value',money(totalValue)],['Average completed bill',completed.length?money(Math.round(totalValue/completed.length)):'₹0']].map(([label,value])=><div key={String(label)} style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><small style={{color:'#78716c'}}>{label}</small><b style={{display:'block',fontSize:20,marginTop:7}}>{value}</b></div>)}
    </div>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:15,marginTop:16}}>
     <div style={{padding:14,border:'1px solid #e7e5e4',borderRadius:12}}><b style={{fontSize:13}}>Popular menu items</b>{topItems.map(([name,count])=><div key={name} style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,padding:'9px 0',borderBottom:'1px solid #f1f5f9'}}><span>{name}</span><b>{count} sold</b></div>)}{!topItems.length&&<p style={{fontSize:11,color:'#78716c'}}>No order items yet.</p>}</div>
