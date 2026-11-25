@@ -552,7 +552,7 @@ function App() {
  <label style={{fontSize:12}}>Password<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label>
  <label style={{fontSize:12}}>Staff invitation code (only if your café invited you)<input value={staffInviteToken} onChange={e=>setStaffInviteToken(e.target.value.trim())} maxLength={64} autoComplete="off" placeholder="Paste your 64-character invitation code" style={{display:'block',width:'100%',padding:12,border:'1px solid #d6d3d1',borderRadius:9,marginTop:5}} /></label>
  <button className="btn" disabled={authBusy||!supabaseConfigured}>{authBusy?'Please wait…':authMode==='signin'?'Sign in':'Create account'} <ArrowRight size={15}/></button>
-</form></form>{!supabaseConfigured&&<p style={{color:'#b45309'}}>Supabase configuration is missing in this deployment. Please redeploy after adding the variables.</p>}{authMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{authMessage}</p>}</div></div>}
+</form>{!supabaseConfigured&&<p style={{color:'#b45309'}}>Supabase configuration is missing in this deployment. Please redeploy after adding the variables.</p>}{authMessage&&<p role="status" style={{fontSize:12,overflowWrap:'anywhere'}}>{authMessage}</p>}</div></div>}
   </div>
 }
 
