@@ -257,7 +257,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
       </div>
     </div>
     {bill && <div className="pos-receipt" style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
-      <b>BREWOS · RECEIPT #{bill.order_number}</b>
+      <b>Rivantoq · RECEIPT #{bill.order_number}</b>
       <div style={{ display: 'grid', gap: 5, margin: '12px 0', fontSize: 12 }}>{bill.lines.map(line => <div key={line.item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><span>{line.item.name} × {line.quantity}</span><b>{money(line.item.price_paise * line.quantity)}</b></div>)}</div>
       <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · Total {money(bill.total_paise)}</p>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Recorded payments</span><b>{money(paidPaise)}</b></div>
@@ -271,9 +271,9 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <button type="button" className="btn" disabled={paymentSaving} onClick={() => void recordPayment()} style={{ justifyContent: 'center' }}>{paymentSaving ? 'Recording…' : 'Record payment'}</button>
       </div>}
       {duePaise === 0 && <p style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Paid in full</p>}
-      {customerPhone.trim() && <button type="button" className="outline-btn" onClick={() => { const phone = customerPhone.replace(/[^0-9]/g, ''); const itemLines = bill.lines.map(line => line.item.name + ' x ' + line.quantity + ' - ' + money(line.item.price_paise * line.quantity)).join('\n'); const text = 'BrewOS bill #' + bill.order_number + '\n' + itemLines + '\nTotal: ' + money(bill.total_paise) + '\nPaid: ' + money(paidPaise) + '\nBalance: ' + money(duePaise) + '\nThank you for visiting!'; window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer') }} style={{ width: '100%', marginTop: 10 }}>Send bill on WhatsApp</button>}
+      {customerPhone.trim() && <button type="button" className="outline-btn" onClick={() => { const phone = customerPhone.replace(/[^0-9]/g, ''); const itemLines = bill.lines.map(line => line.item.name + ' x ' + line.quantity + ' - ' + money(line.item.price_paise * line.quantity)).join('\n'); const text = 'Rivantoq bill #' + bill.order_number + '\n' + itemLines + '\nTotal: ' + money(bill.total_paise) + '\nPaid: ' + money(paidPaise) + '\nBalance: ' + money(duePaise) + '\nThank you for visiting!'; window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer') }} style={{ width: '100%', marginTop: 10 }}>Send bill on WhatsApp</button>}
       <button type="button" className="outline-btn" onClick={() => window.print()} style={{ width: '100%', marginTop: 10 }}>Print / save digital bill</button>
-      <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Bills and payment records are saved in BrewOS. WhatsApp opens a prepared message for the owner to send; UPI payment is completed in the customer’s UPI app, not inside BrewOS.</p>
+      <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Bills and payment records are saved in Rivantoq. WhatsApp opens a prepared message for the owner to send; UPI payment is completed in the customer’s UPI app, not inside Rivantoq.</p>
     </div>}
     {message && <p role="alert" style={{ fontSize: 12, color: '#b91c1c', overflowWrap: 'anywhere' }}>{message}</p>}
   </section>
