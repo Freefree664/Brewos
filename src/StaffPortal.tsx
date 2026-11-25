@@ -50,6 +50,15 @@ export default function StaffPortal({staff,onSignOut}:{staff:StaffProfile;onSign
 
  useEffect(()=>{void refresh()},[staff.id])
 
+ async function updateStatus(order:StaffOrder,status:string){
+  if(!supabase||busy)return
+  setBusy(true);setMessage('')
+  const {error}=await supabase.rpc('staff_update_order_status',{p_order_id:order.id,p_status:status})
+  setBusy(false)
+  if(error)setMessage(error.message);else setMessage('Order #'+order.order_number+' updated to '+status+'.')
+  await refresh()
+ }
+
  async function punch(kind:'in'|'out'){
   if(!supabase||busy)return
   setBusy(true);setMessage('')
@@ -78,8 +87,13 @@ export default function StaffPortal({staff,onSignOut}:{staff:StaffProfile;onSign
    </section>
    <section style={{marginTop:18}}><h2 style={{fontSize:17,display:'flex',gap:8,alignItems:'center'}}>{staff.role==='kitchen'?<ChefHat size={18}/>:<ClipboardList size={18}/>} {staff.role==='kitchen'?'Kitchen order queue':staff.role==='waiter'?'Your assigned tables':'Branch order overview'}</h2>
     {staff.role==='waiter'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10,marginBottom:14}}>{tables.map(table=><div key={table.id} style={{border:'1px solid #86efac',background:'#f0fdf4',borderRadius:12,padding:13}}><b>{table.table_name}</b><small style={{display:'block',marginTop:5,color:'#166534'}}>Assigned to you</small></div>)}{!tables.length&&<p style={{fontSize:12,color:'#78716c'}}>No tables are currently assigned to you.</p>}</div>}
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10}}>{orders.map(order=><article key={order.id} style={{border:'1px solid #e7e5e4',borderRadius:12,padding:13}}><div style={{display:'flex',justifyContent:'space-between',gap:8}}><b>Order #{order.order_number}</b><small style={{fontWeight:800,color:'#047857',textTransform:'uppercase'}}>{order.status}</small></div><p style={{fontSize:11,color:'#78716c',margin:'5px 0 10px'}}>{order.order_type.replace('_',' ')} · {new Date(order.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p><div style={{display:'grid',gap:5}}>{order.order_items.map(item=><div key={item.id} style={{fontSize:12}}>{item.quantity} × {item.item_name_snapshot}</div>)}</div><b style={{display:'block',marginTop:10,fontSize:12}}>{money(order.total_paise)}</b></article>)}{!orders.length&&<p style={{fontSize:12,color:'#78716c'}}>No active orders right now.</p>}</div>
-    <p style={{fontSize:10,color:'#78716c',marginTop:10}}>This staff workspace currently provides scoped viewing and attendance. Order status changes, cash handling and manager actions remain in the owner workspace until their role-specific controls are enabled and tested.</p>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10}}>{orders.map(order=><article key={order.id} style={{border:'1px solid #e7e5e4',borderRadius:12,padding:13}}><div style={{display:'flex',justifyContent:'space-between',gap:8}}><b>Order #{order.order_number}</b><small style={{fontWeight:800,color:'#047857',textTransform:'uppercase'}}>{order.status}</small></div><p style={{fontSize:11,color:'#78716c',margin:'5px 0 10px'}}>{order.order_type.replace('_',' ')} · {new Date(order.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p><div style={{display:'grid',gap:5}}>{order.order_items.map(item=><div key={item.id} style={{fontSize:12}}>{item.quantity} × {item.item_name_snapshot}</div>)}</div><b style={{display:'block',marginTop:10,fontSize:12}}>{money(order.total_paise)}</b>
+     {staff.role==='kitchen'&&order.status==='pending'&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'accepted')}>Accept order</button>}
+     {staff.role==='kitchen'&&['pending','accepted'].includes(order.status)&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'preparing')}>Start preparation</button>}
+     {staff.role==='kitchen'&&order.status==='preparing'&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'ready')}>Mark ready</button>}
+     {staff.role==='waiter'&&order.status==='ready'&&order.table_id&&<button type="button" className="btn" disabled={busy} style={{marginTop:9,width:'100%',justifyContent:'center'}} onClick={()=>void updateStatus(order,'served')}>Mark served</button>}
+    </article>)}{!orders.length&&<p style={{fontSize:12,color:'#78716c'}}>No active orders right now.</p>}</div>
+    <p style={{fontSize:10,color:'#78716c',marginTop:10}}>Kitchen staff can accept and prepare orders, then mark them ready. Waiters can mark ready orders served only at tables assigned to them. Cashier and manager staff accounts currently have read-only order access; payment and manager controls remain in the owner workspace.</p>
    </section>
    <section style={{marginTop:20,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:14}}>
     <div><h3 style={{fontSize:14,display:'flex',gap:7,alignItems:'center'}}><Clock3 size={16}/> Upcoming shifts</h3>{shifts.map(shift=><p key={shift.id} style={{fontSize:11,borderBottom:'1px solid #eee',padding:'7px 0'}}>{new Date(shift.starts_at).toLocaleString()} – {new Date(shift.ends_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>)}{!shifts.length&&<small style={{color:'#78716c'}}>No shifts scheduled.</small>}</div>
