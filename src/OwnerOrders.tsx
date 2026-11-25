@@ -37,7 +37,7 @@ export default function OwnerOrders({cafes}:{cafes:Cafe[]}) {
    const row=payload.new as {id?:string;branch_id?:string;order_number?:number}
    if(row.branch_id!==branchId||!row.id||known.current.has(row.id))return
    known.current.add(row.id);const notice='New order #'+(row.order_number||'')+' received';setLiveMessage(notice)
-   if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('BrewOS · New order',{body:notice})
+   if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('Rivantoq · New order',{body:notice})
    void loadOrders(false)
   }).subscribe()
   const timer=window.setInterval(()=>void loadOrders(true),15000)
@@ -50,7 +50,7 @@ export default function OwnerOrders({cafes}:{cafes:Cafe[]}) {
   const {data,error}=await supabase.from('orders').select('id,order_number,order_type,status,notes,subtotal_paise,tax_paise,total_paise,created_at,table_id,order_items(id,item_name_snapshot,quantity,unit_price_paise,line_total_paise)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(100)
   setLoading(false);if(error){setMessage(error.message);return}
   const rows=(data||[]) as unknown as Order[]
-  if(initial.current&&notifyNew){const fresh=rows.filter(x=>!known.current.has(x.id));if(fresh.length){const notice='New order #'+fresh[0].order_number+' received';setLiveMessage(notice);if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('BrewOS · New order',{body:notice})}}
+  if(initial.current&&notifyNew){const fresh=rows.filter(x=>!known.current.has(x.id));if(fresh.length){const notice='New order #'+fresh[0].order_number+' received';setLiveMessage(notice);if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('Rivantoq · New order',{body:notice})}}
   known.current=new Set(rows.map(x=>x.id));initial.current=true;setOrders(rows)
  }
  async function enableNotifications(){
