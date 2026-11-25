@@ -6,6 +6,19 @@ begin;
 
 drop policy if exists "Staff update orders" on public.orders;
 drop policy if exists "Owners and managers update orders" on public.orders;
+drop policy if exists "Staff create orders" on public.orders;
+drop policy if exists "Owners and managers create POS orders" on public.orders;
+
+create policy "Owners and managers create POS orders"
+on public.orders
+for insert
+to authenticated
+with check (
+  public.has_cafe_role(
+    cafe_id,
+    array['owner'::public.cafe_role, 'manager'::public.cafe_role]
+  )
+);
 
 create policy "Owners and managers update orders"
 on public.orders
@@ -24,21 +37,22 @@ with check (
   )
 );
 
--- Historical order-item snapshots should not be editable through direct table
--- updates. Order creation functions remain the supported write path.
+-- Order-item snapshots are created by the POS and guest-order routines. Keep
+-- POS inserts restricted to owners/managers and verify all related records
+-- belong to the same café and branch. Historical snapshots are immutable.
 drop policy if exists "Managers update order items" on public.order_items;
-
 drop policy if exists "Staff add order items" on public.order_items;
 drop policy if exists "Staff add order items within cafe orders" on public.order_items;
+drop policy if exists "Owners and managers add order items within cafe orders" on public.order_items;
 
-create policy "Staff add order items within cafe orders"
+create policy "Owners and managers add order items within cafe orders"
 on public.order_items
 for insert
 to authenticated
 with check (
   public.has_cafe_role(
     cafe_id,
-    array['owner'::public.cafe_role, 'manager'::public.cafe_role, 'waiter'::public.cafe_role]
+    array['owner'::public.cafe_role, 'manager'::public.cafe_role]
   )
   and exists (
     select 1
