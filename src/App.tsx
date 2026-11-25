@@ -231,7 +231,6 @@ function App() {
           <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} sessionActive={Boolean(qrTableInfo.session_active)} />
           <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Payment is not collected here. The café team will confirm your order.</p>
         </>}
-        <a href={import.meta.env.BASE_URL} style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>Rivantoq home</a>
       </main>
     </div>
   }
