@@ -16,15 +16,21 @@ export function CustomerOrdering({token,items}:Props){
  const count=cartItems.reduce((sum,x)=>sum+cart[x.id],0)
  function change(id:string,delta:number){setCart(old=>{const next={...old},qty=(next[id]||0)+delta;if(qty<=0)delete next[id];else next[id]=Math.min(20,qty);return next})}
  async function placeOrder(){
-  if(!supabase||!cartItems.length||!/^\\d{6}$/.test(pin))return
+  if(!supabase){setMessage('Ordering is temporarily unavailable. Please ask café staff for help.');return}
+  if(!cartItems.length){setMessage('Please add at least one dish to your order.');return}
+  if(pin.length!==6){setMessage('Enter the 6-digit order PIN from café staff.');return}
   setBusy(true);setMessage('')
-  const {data,error}=await supabase.rpc('submit_guest_order',{p_token:token,p_pin:pin,p_items:cartItems.map(x=>({menu_item_id:x.id,quantity:cart[x.id]})),p_notes:notes.trim()||null})
-  setBusy(false);if(error){setMessage(error.message);return}
-  const result=data as {order_id?:string;error?:string}|null
-  if(result?.error){setMessage(result.error);return}
-  if(!result?.order_id){setMessage('We could not confirm the order. Please ask café staff.');return}
-  setSuccess(true);setMessage('Order #'+result.order_id.slice(0,8)+' placed successfully. Please wait for the café team to confirm it.')
-  setCart({});setPin('');setNotes('')
+  try{
+   const {data,error}=await supabase.rpc('submit_guest_order',{p_token:token,p_pin:pin,p_items:cartItems.map(x=>({menu_item_id:x.id,quantity:cart[x.id]})),p_notes:notes.trim()||null})
+   if(error){setMessage(error.message||'We could not send your order. Please try again.');return}
+   const result=data as {order_id?:string;error?:string}|null
+   if(result?.error){setMessage(result.error);return}
+   if(!result?.order_id){setMessage('The café did not confirm this order. Please ask staff to check and try again.');return}
+   setSuccess(true);setMessage('Order #'+result.order_id.slice(0,8)+' has been sent to the café.')
+   setCart({});setPin('');setNotes('')
+  }catch{
+   setMessage('Connection problem. Please check your internet and try again.')
+  }finally{setBusy(false)}
  }
  if(success)return <div className="guest-success"><div className="guest-success-icon"><Sparkles size={28}/></div><h2>Order sent to the kitchen!</h2><p>{message}</p><span>Thank you for dining with us.</span></div>
  return <section className="guest-ordering">
