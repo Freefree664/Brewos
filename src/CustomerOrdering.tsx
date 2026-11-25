@@ -18,10 +18,11 @@ export function CustomerOrdering({token,items,initialPin=''}:Props){
  const count=cartItems.reduce((sum,x)=>sum+cart[x.id],0)
  function change(id:string,delta:number){setCart(old=>{const next={...old},qty=(next[id]||0)+delta;if(qty<=0)delete next[id];else next[id]=Math.min(20,qty);return next})}
  useEffect(()=>{
-  if(!orderId||!supabase)return
+  const client=supabase
+  if(!orderId||!client)return
   let active=true
   const refresh=async()=>{
-   const {data,error}=await supabase.rpc('get_guest_order_status',{p_token:token,p_order_id:orderId})
+   const {data,error}=await client.rpc('get_guest_order_status',{p_token:token,p_order_id:orderId})
    if(!active||error||!data)return
    const result=data as {status?:string;order_number?:number}
    if(result.status)setOrderStatus(result.status)
