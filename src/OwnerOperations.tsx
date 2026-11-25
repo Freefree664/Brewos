@@ -4,7 +4,7 @@ import { ChefHat, ClipboardList, Users, BarChart3, Gift, RefreshCw, Clock3, Sear
 
 type Cafe = { id:string; name:string }
 type Branch = { id:string; name:string }
-type Staff = { id:string; full_name:string; phone:string|null; role:string; active:boolean; branch_id:string|null }
+type Staff = { id:string; full_name:string; phone:string|null; role:string; active:boolean; branch_id:string|null; auth_user_id:string|null; invite_email:string|null }
 type OrderItem = { id:string; item_name_snapshot:string; quantity:number; unit_price_paise:number; unit_cost_paise:number|null; line_total_paise:number }
 type Order = { id:string; order_number:number; status:string; order_type:string; total_paise:number; discount_paise:number; created_at:string; customer_name:string|null; customer_phone:string|null; table_id:string|null; order_items:OrderItem[] }
 type DiningTable = { id:string; table_name:string; assigned_waiter_id:string|null; floor_position:number }
@@ -77,7 +77,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
   if(!supabase||!cafeId||!branchId)return
   setLoading(true);setMessage('')
   const results=await Promise.all([
-   supabase.from('staff_members').select('id,full_name,phone,role,active,branch_id').eq('cafe_id',cafeId).order('full_name'),
+   supabase.from('staff_members').select('id,full_name,phone,role,active,branch_id,auth_user_id,invite_email').eq('cafe_id',cafeId).order('full_name'),
    supabase.from('orders').select('id,order_number,status,order_type,total_paise,discount_paise,created_at,customer_name,customer_phone,table_id,order_items(id,item_name_snapshot,quantity,unit_price_paise,unit_cost_paise,line_total_paise)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(1000),
    supabase.from('dining_tables').select('id,table_name,assigned_waiter_id,floor_position').eq('cafe_id',cafeId).eq('branch_id',branchId).eq('active',true).order('floor_position').order('created_at'),
    supabase.from('customer_loyalty_accounts').select('id,customer_name,customer_phone,points_balance,total_orders,total_spend_paise').eq('cafe_id',cafeId).order('updated_at',{ascending:false}).limit(250),
@@ -264,7 +264,7 @@ export default function OwnerOperations({cafes}:{cafes:Cafe[]}) {
    </form>
    {staffInviteCode&&<div style={{marginTop:10,padding:13,border:'1px solid #fbbf24',background:'#fffbeb',borderRadius:11}}><b style={{fontSize:12}}>One-time staff invitation code</b><p style={{fontSize:11,color:'#78716c'}}>Send this code only to the staff member whose email you entered. They must create or sign in to a BrewOS account with that same email. The code expires after 7 days and can be used once.</p><code style={{display:'block',overflowWrap:'anywhere',fontSize:12,padding:10,background:'#fff',borderRadius:8}}>{staffInviteCode}</code><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8}} onClick={()=>void navigator.clipboard?.writeText(staffInviteCode)}>Copy invitation code</button><button type="button" className="outline-btn" style={{width:'auto',padding:'8px 11px',marginTop:8,marginLeft:8}} onClick={()=>setStaffInviteCode('')}>Hide code</button></div>}
    <div style={{display:'grid',gap:8,marginTop:12}}>{staff.map(person=><article key={person.id} style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',padding:11,border:'1px solid #e7e5e4',borderRadius:10}}>
-    <div style={{flex:1,minWidth:130}}><b style={{fontSize:13}}>{person.full_name}</b><div style={{fontSize:10,color:'#78716c'}}>{person.role} · {person.phone||'No phone'} · {person.active?'Active':'Inactive'}</div></div>
+    <div style={{flex:1,minWidth:130}}><b style={{fontSize:13}}>{person.full_name}</b><div style={{fontSize:10,color:'#78716c'}}>{person.role} · {person.phone||'No phone'} · {person.active?'Active':'Inactive'} · {person.auth_user_id?'Login active':person.invite_email?'Invite sent to '+person.invite_email:'No login invite'}</div></div>
     <button type="button" className="outline-btn" style={{width:'auto',padding:'7px 10px'}} disabled={busy||!person.active} onClick={()=>void attendance(person,'in')}>Check in</button>
     <button type="button" className="outline-btn" style={{width:'auto',padding:'7px 10px'}} disabled={busy} onClick={()=>void attendance(person,'out')}>Check out</button>
     <button type="button" className="outline-btn" style={{width:'auto',padding:'7px 10px'}} disabled={busy} onClick={()=>void toggleStaff(person)}>{person.active?'Deactivate':'Reactivate'}</button>
