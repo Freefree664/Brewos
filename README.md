@@ -1,10 +1,10 @@
-# BrewOS
+# Rivantoq
 
-BrewOS is a café ordering and management web app built with React, Vite, TypeScript and Supabase.
+Rivantoq is a café ordering and management web app built with React, Vite, TypeScript and Supabase.
 
 ## Current working areas
 
-- Public BrewOS landing page with English/Hindi language toggle
+- Public Rivantoq landing page with English/Hindi language toggle
 - Supabase email authentication and owner workspace
 - Restaurant, first-branch and dining-table setup
 - Guest-facing table QR, digital menu, cart and staff-PIN-protected order submission
@@ -88,7 +88,7 @@ The static production files are generated in `dist/`.
 
 ## Deployment
 
-BrewOS currently uses Netlify. The build command and publish directory are configured in `netlify.toml`:
+Rivantoq currently uses Netlify. The build command and publish directory are configured in `netlify.toml`:
 
 - Build command: `npm run build`
 - Publish directory: `dist`
@@ -135,6 +135,6 @@ Emerald `#059669`, cream `#F5EBD8`, charcoal `#292524`.
 
 - Each restaurant owner can save a restaurant-specific UPI ID in the owner workspace.
 - POS bill creation includes a payment-mode choice (cash, UPI or card). UPI bills display a QR for the exact outstanding bill amount; cash bills do not display a QR.
-- POS bills are saved as orders and item snapshots in the owner's BrewOS order records. An optional customer phone number enables a prefilled WhatsApp bill message; the owner must review and send it.
+- POS bills are saved as orders and item snapshots in the owner's Rivantoq order records. An optional customer phone number enables a prefilled WhatsApp bill message; the owner must review and send it.
 - For table QR orders, the customer sees an itemized digital bill and can choose UPI QR or cash at the counter after the order is marked completed.
-- UPI QR codes only initiate a payment in the customer's UPI app. BrewOS does not receive payment confirmation automatically; restaurant staff must verify the transaction and record the payment.
+- UPI QR codes only initiate a payment in the customer's UPI app. Rivantoq does not receive payment confirmation automatically; restaurant staff must verify the transaction and record the payment.
