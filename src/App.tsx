@@ -531,7 +531,7 @@ function App() {
  e.preventDefault()
  if(!supabase){setAuthMessage('Supabase is not configured. Check Netlify environment variables and redeploy.');return}
  setAuthBusy(true);setAuthMessage('')
- const result=authMode==='signup'?await supabase.auth.signUp({email:email.trim(),password}):await supabase.auth.signInWithPassword({email:email.trim(),password})
+ const result=authMode==='signup'?await supabase.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:`${window.location.origin}${import.meta.env.BASE_URL}`}}):await supabase.auth.signInWithPassword({email:email.trim(),password})
  setAuthBusy(false)
  if(result.error){setAuthMessage(result.error.message);return}
  const user=result.data.session?.user
