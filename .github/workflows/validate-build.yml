@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/owner-dashboard
+      - feature/pos-billing
   pull_request:
     branches:
       - main
