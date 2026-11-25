@@ -1,13 +1,24 @@
-name: Validate BrewOS build
+name: Validate Rivantoq build
 
 on:
   push:
     branches:
-      - feature/owner-dashboard
-      - feature/pos-billing
+      - main
+      - deploy/github-pages-preview
+      - 'fix/**'
+      - 'feature/**'
   pull_request:
     branches:
       - main
+      - deploy/github-pages-preview
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
