@@ -82,7 +82,7 @@ function App() {
   const [tableBusy,setTableBusy] = useState(false)
   const [tableMessage,setTableMessage] = useState('')
   const [newTableToken,setNewTableToken] = useState('')
-  const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string;active_pin?:string|null} | null>(null)
+  const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string;session_active?:boolean} | null>(null)
   const [qrTableLoading,setQrTableLoading] = useState(false)
   const [qrTableError,setQrTableError] = useState('')
   const [qrMenuItems,setQrMenuItems] = useState<Array<{id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}>>([])
@@ -138,7 +138,7 @@ function App() {
         setQrTableError('This table QR code is invalid, inactive, or no longer available.')
         return
       }
-      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;active_pin?:string|null;cafe_slug?:string;slug?:string}
+      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;session_active?:boolean;cafe_slug?:string;slug?:string}
       setQrTableInfo(tableInfo)
       setQrMenuLoading(true)
       setQrMenuError('')
@@ -200,11 +200,11 @@ function App() {
       const { data, error } = await client.rpc('get_public_table_info', { p_token: qrTokenFromUrl })
       if (!active || error) return
       if (!data) {
-        setQrTableInfo(current => current ? {...current, active_pin: null} : current)
+        setQrTableInfo(current => current ? {...current, session_active: false} : current)
         return
       }
-      const latest = data as {active_pin?:string|null}
-      setQrTableInfo(current => current ? {...current, active_pin: latest.active_pin || null} : current)
+      const latest = data as {session_active?:boolean}
+      setQrTableInfo(current => current ? {...current, session_active: Boolean(latest.session_active)} : current)
     }
     const timer = window.setInterval(() => void refreshSessionCode(), 5000)
     return () => { active = false; window.clearInterval(timer) }
@@ -225,10 +225,10 @@ function App() {
             <div style={{fontSize:12,color:'#78716c',fontWeight:700,letterSpacing:1}}>YOUR TABLE</div>
             <div style={{fontSize:30,fontWeight:800,color:'#047857',marginTop:5}}>{qrTableInfo.table_name}</div>
           </div>
-          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu. When café staff activate your table, its session code appears automatically.</p>
+          <p style={{fontSize:13,lineHeight:1.6,color:'#78716c'}}>Your table has been identified. Browse the menu. When café staff activate your table, ask them for the six-digit ordering code.</p>
           {qrMenuLoading && <p role="status" style={{fontSize:13,color:'#78716c'}}>Loading menu…</p>}
           {qrMenuError && <p role="status" style={{fontSize:13,color:'#a16207',lineHeight:1.6}}>{qrMenuError}</p>}
-          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} initialPin={qrTableInfo.active_pin || ''} />
+          <CustomerOrdering token={qrTokenFromUrl} items={qrMenuItems} sessionActive={Boolean(qrTableInfo.session_active)} />
           <p style={{fontSize:12,fontWeight:700,color:'#a16207',marginTop:18}}>Payment is not collected here. The café team will confirm your order.</p>
         </>}
         <a href={import.meta.env.BASE_URL} style={{display:'inline-block',marginTop:18,color:'#047857',fontSize:13,textDecoration:'none'}}>Rivantoq home</a>
