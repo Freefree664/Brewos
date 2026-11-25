@@ -1,140 +1,67 @@
 # Rivantoq
 
-Rivantoq is a café ordering and management web app built with React, Vite, TypeScript and Supabase.
+**Every service. One system.**
 
-## Current working areas
+Rivantoq is a café operations and guest-ordering platform built with React, Vite, TypeScript and Supabase.
 
-- Public Rivantoq landing page with English/Hindi language toggle
-- Supabase email authentication and owner workspace
-- Restaurant, first-branch and dining-table setup
-- Guest-facing table QR, digital menu, cart and staff-PIN-protected order submission
-- Owner menu tools for categories, photos, availability, selling prices and private preparation costs
-- Order dashboard with status updates, Supabase Realtime and a 15-second polling fallback
-- Optional browser notifications while the owner dashboard is open
-- UPI QR subscription requests with transaction-reference submission and manual Super Admin verification
+## Current platform modules
 
-## Not yet implemented
+The preview branch includes owner onboarding and café workspaces, branch and table setup, QR guest menus and ordering, owner menu management, order management, POS billing, staff workspaces, kitchen and waiter workflows, analytics, loyalty features, and restaurant UPI QR settings.
 
-- Dedicated kitchen display / preparation queue
-- Staff scheduling, attendance and waiter assignment
-- Inventory and ingredient tracking
-- Sales reports and analytics
+Feature availability must be confirmed against the live preview and current database before a production release. A successful build is not a substitute for end-to-end testing.
 
-The landing page labels these items as in development. Do not advertise them as available features until they are implemented and tested.
+## Important payment limitations
+
+- Restaurant UPI QR codes open the customer's UPI app; Rivantoq does not receive automatic payment confirmation.
+- Staff must independently verify a transaction before recording it as paid.
+- Subscription plan payments are submitted for manual Super Admin verification.
+- Automated gateway settlement, refunds, tax configuration and payment reconciliation are not included.
 
 ## Supabase configuration
 
-Set these Vite environment variables for every build context:
+GitHub Actions uses repository variables for:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Use only the Supabase publishable/anon key in the browser. Never put a service-role key, database password, or other server secret in frontend environment variables.
+Only a Supabase publishable/anon key belongs in the browser. Never place a service-role key, database password, or other server secret in frontend code or GitHub variables used by the frontend build.
 
 ## Database migrations
 
-For a new Supabase project, review and apply migrations in numeric order:
+SQL migrations are stored in `supabase/migrations/`. For an existing project, compare the live schema and migration history before applying anything. Do not replay the initial schema or blindly run the entire migration folder against a live database.
 
-1. `0001_initial_schema.sql`
-2. `0002_subscription_payment_requests.sql`
-3. `0003_super_admin_payment_review.sql`
-4. `0004_owner_onboarding.sql`
-5. `0005_menu_item_costs_and_storage.sql`
-6. `0006_table_qr_foundation.sql`
-7. `0007_guest_ordering.sql`
-8. `0008_super_admin_cafe_moderation_and_realtime.sql`
-9. `0009_restrict_internal_security_definer_rpcs.sql`
-10. `0010_version_public_qr_menu_rpcs.sql`
-11. `0011_remove_legacy_menu_image_policies.sql`
-12. `0012_restore_owner_menu_image_policies.sql`
-13. `0013_pos_order_creation.sql`
-14. `0014_pos_discounts_and_payments.sql`
-15. `0015_table_sessions_and_guest_order_tracking.sql`
-16. `0016_secure_session_codes_disable_legacy_pin.sql`
-17. `0017_subscription_plan_pricing_update.sql`
-18. `0018_restaurant_upi_and_pos_customer_contact.sql`
-19. `0019_guest_digital_bills_and_upi_qr.sql`
-20. `0020_restrict_pos_rpc_anon_access.sql`
+The pre-launch hardening migration `20261126010000_prelaunch_order_access_hardening.sql` is prepared for review. It has **not** been applied to the live Supabase database. Apply it only after reviewing the changes and testing the application against a staging database or an approved maintenance window.
 
-For an existing project, inspect its migration history and schema first. Do not replay `0001_initial_schema.sql` or blindly rerun the entire sequence on a live database. Apply only missing migrations after verifying that equivalent tables, functions and policies are not already present. In particular, `0007_guest_ordering.sql` has already been applied to the current project; do not apply it again just because it appears in this list.
-
-The POS screen supports item search, quantity changes, dine-in/takeaway/delivery, server-validated discounts, manual cash/card/UPI payment records (including split tenders), UPI QR generation from each restaurant's saved UPI ID, customer WhatsApp bill sharing, and printable receipts. Bills and payment records are stored in the database. UPI QR generation does not verify or collect money: staff must independently verify a payment before recording it as paid. Tax configuration, refunds and payment reconciliation remain future work.
-
-The first Super Admin must be added to `public.super_admins` by a trusted project administrator using the Supabase SQL Editor. Do not expose an administrative key in the app.
-
-### Public QR menu functions
-
-The guest page calls:
-
-- `get_public_table_info(p_token)`
-- `get_public_cafe_menu(p_slug)`
-
-Their verified live definitions are versioned in `0010_version_public_qr_menu_rpcs.sql`. The table lookup accepts a full QR token and returns only restaurant, branch and table labels. The public menu RPC returns guest-facing menu data only; it does not return preparation costs or profit details.
-
-## Local development
+## Development and build
 
 ```bash
 npm install
 npm run dev
-```
-
-## Production build
-
-```bash
 npm run build
 ```
 
-The static production files are generated in `dist/`.
+The static site is generated in `dist/`.
 
-## Deployment
+## GitHub Pages preview
 
-Rivantoq currently uses Netlify. The build command and publish directory are configured in `netlify.toml`:
+The preview deployment workflow is `.github/workflows/deploy-github-pages.yml`. It publishes the `deploy/github-pages-preview` branch to:
 
-- Build command: `npm run build`
-- Publish directory: `dist`
-- Node.js: 20
+https://freefree664.github.io/Brewos/
 
-The `feature/owner-dashboard` branch deploys as a Netlify preview. The production site follows `main`; do not treat a branch preview as the production release. Merge and production release only after the database and end-to-end checks pass.
+The validation workflow runs the TypeScript check and production build on pushes and pull requests. The preview branch is not automatically the production release. Keep `main` unchanged until the release has been reviewed and explicitly approved.
 
-Hostinger migration can be done later if/when a suitable plan is purchased. The current Vite frontend is static; Supabase continues to provide auth and database services.
+## Pre-launch checks
 
-## Operational checks before launch
-
-- Confirm the public QR RPC definitions and database migration state.
-- Test owner restaurant creation, approval and table QR generation using an authorized account.
-- Test menu create/edit/availability and photo upload with owner RLS.
-- Test one complete guest order with an active table and a staff-issued PIN.
-- Confirm order status updates and Realtime/polling notifications.
-- Test the subscription request and Super Admin review flow using a test payment record; never approve a real payment without independently verifying the transaction.
-- Test fresh QR scans against the current production domain after the production deploy.
-
-The guest-order and owner-order code paths are implemented, but a successful frontend build does not prove these live database flows have passed. Browser alerts require the dashboard to remain open. Subscription checkout is not an automated payment gateway: a Super Admin must verify payment before activation.
+- Test with at least two independent café owner accounts and verify that neither can read or modify the other's data.
+- Test each staff role using separate linked accounts and branch assignments.
+- Test a complete table QR order with an active session and staff-issued code.
+- Test POS order creation, split/partial payments, closed-order protection and manual payment verification.
+- Test menu creation, edits, availability and image upload.
+- Test subscription request submission and Super Admin review with test records.
+- Confirm Supabase RLS, SECURITY DEFINER function grants, storage policies and migration history.
+- Verify the latest GitHub Pages deployment and test on a phone/tablet.
 
 ## Brand
 
 Emerald `#059669`, cream `#F5EBD8`, charcoal `#292524`.
 
-## Phase 2 — POS & Billing
-
-- Owner workspace POS with branch-aware menu search, cart controls, order types and customer notes.
-- Atomic database order creation recalculates menu prices and discounts server-side.
-- Manual cash/card/UPI payment ledger supports partial and split tender entries, with balance-due checks and owner/manager authorization.
-- Printable bill/receipt view. No automated payment gateway, tax engine, refunds or settlement reconciliation yet.
-
-
-## Table sessions and guest order tracking
-
-- Owner/manager starts or ends a table session from Tables & QR setup.
-- Each active session has one six-digit code. The static table QR page displays that code automatically while the session is active; ending the session invalidates it.
-- Customers can place multiple orders during the same active table session without requesting a new code for every order.
-- After placing an order, the guest page polls a QR-token-scoped status RPC and shows the order timeline through confirmation, preparation, ready, served and completion.
-- The legacy one-time PIN issuer is disabled. The public session code is intentionally visible only to a visitor holding that table's unguessable QR token; anyone with a copy of the table QR can order while the session is open.
-
-
-## Restaurant UPI and customer bills
-
-- Each restaurant owner can save a restaurant-specific UPI ID in the owner workspace.
-- POS bill creation includes a payment-mode choice (cash, UPI or card). UPI bills display a QR for the exact outstanding bill amount; cash bills do not display a QR.
-- POS bills are saved as orders and item snapshots in the owner's Rivantoq order records. An optional customer phone number enables a prefilled WhatsApp bill message; the owner must review and send it.
-- For table QR orders, the customer sees an itemized digital bill and can choose UPI QR or cash at the counter after the order is marked completed.
-- UPI QR codes only initiate a payment in the customer's UPI app. Rivantoq does not receive payment confirmation automatically; restaurant staff must verify the transaction and record the payment.
