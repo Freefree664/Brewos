@@ -33,7 +33,7 @@ const copy = {
   }
 }
 
-const plans = [{name:'1 Month',price:'₹899',term:'1 महीना'}, {name:'3 Months',price:'₹1,299',term:'3 महीने'}, {name:'6 Months',price:'₹1,999',term:'6 महीने',popular:true}, {name:'9 Months',price:'₹2,999',term:'9 महीने'}, {name:'1 Year',price:'₹4,999',term:'1 साल'}, {name:'2 Years',price:'₹6,999',term:'2 साल'}]
+const plans = [{name:'1 Month',price:'₹1,999',term:'1 महीना'}, {name:'3 Months',price:'₹2,599',term:'3 महीने'}, {name:'6 Months',price:'₹3,999',term:'6 महीने',popular:true}, {name:'9 Months',price:'₹4,099',term:'9 महीने'}, {name:'1 Year',price:'₹7,999',term:'1 साल'}, {name:'2 Years',price:'₹8,999',term:'2 साल'}]
 const tourSteps = [
   {icon:QrCode,label:'Guest experience',title:'A smoother visit, from the first scan.',desc:'Guests open their table menu, browse dishes, add notes and place an order after the café team activates the table.',eyebrow:'RIVANTOQ GUEST',metric:'Scan · Explore · Order',detail:'A menu designed for the table — not a trip to the admin website.'},
   {icon:ShoppingBag,label:'Owner workspace',title:'Your café, clearly in view.',desc:'Owners manage their own café spaces, menus, branches, tables and incoming orders from one private workspace.',eyebrow:'RIVANTOQ CONTROL',metric:'Menus · Tables · Teams',detail:'Each owner signs in to manage the cafés connected to their account.'},
