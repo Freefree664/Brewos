@@ -130,11 +130,11 @@ function App() {
     return () => { active = false }
   }, [authUser?.id])
   useEffect(() => {
-  useEffect(() => {
-    if (!supabase || !authUser?.id || linkedStaff) { setOwnerWaiterCalls([]); seenOwnerCallIds.current = new Set(); return }
+    const client = supabase
+    if (!client || !authUser?.id || linkedStaff) { setOwnerWaiterCalls([]); seenOwnerCallIds.current = new Set(); return }
     let active = true
     const refreshOwnerWaiterCalls = async () => {
-      const { data, error } = await supabase.rpc('get_staff_waiter_calls')
+      const { data, error } = await client.rpc('get_staff_waiter_calls')
       if (!active || error) return
       const calls = (data || []) as Array<{id:string;table_name:string;status:string;created_at:string;branch_id:string}>
       const previous = seenOwnerCallIds.current
@@ -148,12 +148,14 @@ function App() {
     return () => { active = false; window.clearInterval(timer) }
   }, [authUser?.id, linkedStaff?.id])
   async function markOwnerWaiterCallHandled(callId:string) {
-    if (!supabase) return
-    const { error } = await supabase.rpc('update_waiter_call_status', {p_call_id:callId,p_status:'served'})
+    const client = supabase
+    if (!client) return
+    const { error } = await client.rpc('update_waiter_call_status', {p_call_id:callId,p_status:'served'})
     if (error) { setOwnerMessage(error.message); return }
     setOwnerWaiterCalls(current => current.filter(call => call.id !== callId))
     setOwnerWaiterToast(current => current?.id === callId ? null : current)
   }
+  useEffect(() => {
     if (!qrTokenFromUrl) return
     let active = true
     async function loadPublicTableInfo() {
