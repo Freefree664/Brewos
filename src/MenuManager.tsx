@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { supabase } from './lib/supabase'
+import { MenuCustomizationManager, OwnerFeedbackManager } from './PhaseOneTools'
 
 type Cafe = { id: string; name: string }
 type Branch = { id: string; name: string }
@@ -252,6 +253,8 @@ export default function MenuManager({ cafes }: { cafes: Cafe[] }) {
             </article>
           })}
         </div>
+        <MenuCustomizationManager cafeId={cafeId} items={items.map(item=>({id:item.id,name:item.name}))}/>
+        <OwnerFeedbackManager cafeId={cafeId}/>
       </>}
     </>}
     {message && <p role="status" style={{fontSize:12,overflowWrap:'anywhere',marginTop:10}}>{message}</p>}
