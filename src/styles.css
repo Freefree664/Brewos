@@ -359,3 +359,90 @@ button:disabled{cursor:not-allowed}
 @media(max-width:760px){.experience-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.experience-tab{justify-content:flex-start}.experience-panel{grid-template-columns:1fr;gap:18px}.experience-copy{max-width:none}.experience-visual{min-height:260px}.faq-wrap{grid-template-columns:1fr;gap:20px}}
 @media(max-width:460px){.experience-section{padding:64px 0}.experience-intro{text-align:left}.experience-intro p{margin:0}.experience-tabs{gap:7px}.experience-tab{min-height:50px;padding:9px;font-size:11px;gap:7px}.experience-tab>svg:last-child{display:none}.experience-panel{padding:20px 16px;border-radius:20px}.experience-visual{min-height:230px}.experience-window{width:100%}.window-content{padding:16px}.experience-stamp{right:-3px;bottom:0}.faq-list summary{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.experience-tab,.experience-window,.faq-list summary span{transition:none}}
+
+
+/* Rivantoq owner workspace — clearer hierarchy, calmer surfaces, and touch-friendly controls. */
+.owner-workspace-modal{
+  border:1px solid #dce9dd!important;
+  border-radius:26px!important;
+  background:linear-gradient(180deg,#f7fbf5 0,#fffefa 190px)!important;
+  box-shadow:0 30px 90px #102d1d35!important;
+  scrollbar-color:#b8d8c1 transparent;
+}
+.owner-workspace-modal>.modal-icon{
+  display:grid;place-items:center;width:54px;height:54px;margin:0 auto 12px;
+  border:1px solid #d5ead9;border-radius:18px;
+  background:linear-gradient(145deg,#e8f7eb,#fff3df);color:#087f5b;
+  box-shadow:0 8px 20px #174b3010;
+}
+.owner-workspace-modal>h2{
+  margin:8px 38px 7px!important;color:#173b2a!important;
+  font:800 clamp(24px,3vw,32px)/1.15 Manrope!important;letter-spacing:-1.1px;
+}
+.owner-workspace-modal>p{
+  max-width:620px;margin:0 auto 22px!important;color:#718078!important;
+  font-size:13px;line-height:1.7;
+}
+.owner-workspace-modal h3{
+  color:#1d4632!important;font-family:Manrope,sans-serif;
+  letter-spacing:-.25px;
+}
+.owner-workspace-modal article{
+  border-color:#e1eadf!important;background:#fff!important;
+  box-shadow:0 5px 18px #193b2908;transition:transform .18s,border-color .18s,box-shadow .18s;
+}
+.owner-workspace-modal article:hover{
+  border-color:#b9d9c0!important;box-shadow:0 9px 24px #193b2910;
+}
+.owner-workspace-modal small{line-height:1.6}
+.owner-workspace-modal label{
+  color:#52695b!important;font-weight:700;line-height:1.5;
+}
+.owner-workspace-modal input:not([type=checkbox]),.owner-workspace-modal select,.owner-workspace-modal textarea{
+  min-height:44px;border:1px solid #dce7dc!important;border-radius:11px!important;
+  background:#fffefa!important;color:#244535!important;
+  box-shadow:0 1px 2px #183b2908;transition:border-color .18s,box-shadow .18s;
+}
+.owner-workspace-modal input:focus,.owner-workspace-modal select:focus,.owner-workspace-modal textarea:focus{
+  outline:3px solid #0b966a20!important;border-color:#0b966a!important;
+}
+.owner-workspace-modal .btn{
+  min-height:45px;border-radius:12px;background:linear-gradient(120deg,#0b966a,#075943);
+  box-shadow:0 8px 18px #087f5b25;
+}
+.owner-workspace-modal .outline-btn{
+  min-height:40px;border:1px solid #d5e4d7!important;border-radius:11px!important;
+  background:#fffefa!important;color:#176044!important;font-weight:700;
+  transition:background .18s,border-color .18s,transform .18s;
+}
+.owner-workspace-modal .outline-btn:hover:not(:disabled){
+  border-color:#9fcbaa!important;background:#f0f8ef!important;transform:translateY(-1px);
+}
+.owner-workspace-modal button:disabled{cursor:not-allowed;opacity:.58}
+.owner-workspace-modal [style*="border-top: 1px"]{
+  border-color:#e5ece2!important;
+}
+.owner-workspace-modal .orders-metrics{gap:12px}
+.owner-workspace-modal .orders-metrics>*{
+  min-height:104px;border:1px solid #e3ece1;
+  box-shadow:0 8px 22px #193b290a;
+}
+.owner-workspace-modal .orders-tabs{gap:8px;flex-wrap:wrap}
+.owner-workspace-modal .orders-tabs button{min-height:40px;padding:9px 13px}
+.owner-workspace-modal .orders-search{min-height:44px;background:#fffefa}
+.owner-workspace-modal .order-card{transition:transform .18s,box-shadow .18s}
+.owner-workspace-modal .order-card:hover{transform:translateY(-2px);box-shadow:0 14px 28px #193b2912}
+.owner-workspace-modal .modal-close{
+  border:1px solid #dce8dc!important;background:#fffefa!important;color:#41624e!important;
+  box-shadow:0 5px 15px #193b2910;
+}
+.owner-workspace-modal :focus-visible{outline:3px solid #0b966a55;outline-offset:3px}
+@media(max-width:650px){
+  .owner-workspace-modal{background:#fbfcf7!important}
+  .owner-workspace-modal>h2{font-size:23px!important}
+  .owner-workspace-modal>p{font-size:12px}
+  .owner-workspace-modal .orders-tabs{display:flex;overflow-x:auto;flex-wrap:nowrap;padding:2px 0 8px}
+  .owner-workspace-modal .orders-tabs button{flex:0 0 auto;white-space:nowrap}
+  .owner-workspace-modal .orders-metrics>*{min-height:90px}
+  .owner-workspace-modal article{padding:12px!important}
+}
