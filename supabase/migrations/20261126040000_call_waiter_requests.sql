@@ -9,10 +9,8 @@ create table if not exists public.waiter_call_requests (
     check (status in ('pending','acknowledged','served','cancelled')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint waiter_call_table_alignment
-    foreign key (table_id, cafe_id, branch_id)
-    references public.dining_tables(id, cafe_id, branch_id)
-    on delete cascade
+  constraint waiter_call_table_fk foreign key (table_id)
+    references public.dining_tables(id) on delete cascade
 );
 
 create index if not exists waiter_call_requests_branch_status_created_idx
