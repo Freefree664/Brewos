@@ -7,6 +7,7 @@ import OwnerOrders from './OwnerOrders'
 import OwnerPOS from './OwnerPOS'
 import OwnerPaymentSettings from './OwnerPaymentSettings'
 import OwnerOperations from './OwnerOperations'
+import DigitalTwin from './DigitalTwin'
 import { CustomerOrdering, TablePinIssuer } from './CustomerOrdering'
 import StaffPortal from './StaffPortal'
 
@@ -553,7 +554,8 @@ function App() {
 <OwnerOrders cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
 <OwnerPOS cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
 <OwnerPaymentSettings cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
- <OwnerOperations cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} /><div style={{borderTop:'1px solid #eee9df',paddingTop:18,marginTop:18}}>
+ <OwnerOperations cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} />
+ <DigitalTwin cafes={ownerCafes.filter(cafe=>cafe.status==='approved')} /><div style={{borderTop:'1px solid #eee9df',paddingTop:18,marginTop:18}}>
 <h3 style={{fontSize:16,margin:'0 0 12px'}}>Tables & QR setup</h3>
 <p style={{fontSize:12,color:'#78716c'}}>Create tables and activate or end a table session. Customers see the active session code automatically after scanning the table QR.</p>
 <label style={{fontSize:12}}>Restaurant
