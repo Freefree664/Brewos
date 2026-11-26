@@ -4,7 +4,7 @@ create table if not exists public.waiter_call_requests (
   id uuid primary key default gen_random_uuid(),
   cafe_id uuid not null references public.cafes(id) on delete cascade,
   branch_id uuid not null references public.branches(id) on delete cascade,
-  table_id uuid not null references public.dining_tables(id) on delete cascade,
+  table_id uuid not null,
   status text not null default 'pending'
     check (status in ('pending','acknowledged','served','cancelled')),
   created_at timestamptz not null default now(),
@@ -97,7 +97,15 @@ begin
 
   insert into public.waiter_call_requests(cafe_id,branch_id,table_id)
   values(v_table.cafe_id,v_table.branch_id,v_table.id)
+  on conflict (table_id) where status in ('pending','acknowledged') do nothing
   returning * into v_call;
+
+  if not found then
+    select * into v_call from public.waiter_call_requests
+    where table_id=v_table.id and status in ('pending','acknowledged')
+    order by created_at desc limit 1;
+    return jsonb_build_object('request_id',v_call.id,'status',v_call.status,'already_requested',true);
+  end if;
 
   return jsonb_build_object('request_id',v_call.id,'status',v_call.status,'already_requested',false);
 end;
