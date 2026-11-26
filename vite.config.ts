@@ -1,4 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({ plugins: [react()] })
+// This preview is hosted at https://freefree664.github.io/Brewos/
+export default defineConfig({
+  base: '/Brewos/',
+  plugins: [react()],
+})
