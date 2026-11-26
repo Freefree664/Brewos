@@ -79,12 +79,11 @@ export function CustomerOrdering({token,items,sessionActive}:Props){
     <h2 style={{margin:'8px 0',fontSize:24}}>Call a waiter</h2>
     <p style={{fontSize:13,color:'#78716c',lineHeight:1.6}}>Need help, a menu question, or assistance at your table? Send a request and a waiter will be notified.</p>
     {!sessionActive?<p role="status" style={{padding:12,borderRadius:10,background:'#fffbeb',color:'#92400e',fontSize:12}}>This table is not active yet. Please ask café staff to open your table.</p>:<>
-     {!callSent&&<label className="guest-field" style={{textAlign:'left'}}>Six-digit table code from café staff<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={sessionPin} onChange={e=>setSessionPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="Enter table code"/></label>}
-     <button type="button" className="guest-place-order" disabled={callBusy||!/^\d{6}$/.test(sessionPin)||callSent||!supabase} onClick={async()=>{
+     <button type="button" className="guest-place-order" disabled={callBusy||callSent||!supabase||!sessionActive} onClick={async()=>{
       if(!supabase)return;
       setCallBusy(true);setCallMessage('');
       try{
-       const {data,error}=await supabase.rpc('call_waiter_for_table',{p_token:token,p_pin:sessionPin});
+       const {data,error}=await supabase.rpc('call_waiter_for_table',{p_token:token});
        if(error){setCallMessage(error.message||'Could not send your request. Please ask café staff.');return;}
        const result=data as {request_id?:string;status?:string;error?:string;already_requested?:boolean}|null;
        if(result?.error){setCallMessage(result.error);return;}
