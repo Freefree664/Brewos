@@ -574,7 +574,15 @@ function App() {
 <p style={{fontSize:11,margin:'6px 0',overflowWrap:'anywhere'}}>{newTableToken}</p>
 <button type="button" className="outline-btn" style={{width:'auto',padding:'8px 12px'}} onClick={()=>void navigator.clipboard?.writeText(newTableToken)}>Copy token</button>
 <p style={{fontSize:11,margin:'8px 0 0'}}>Display this QR at the table. When the owner activates the table session, customers see its session code automatically.</p>
-<div style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={`${window.location.origin}${import.meta.env.BASE_URL}?table=${encodeURIComponent(newTableToken)}`} size={220} level="M" includeMargin /></div>
+<div id="new-table-qr" style={{display:'flex',justifyContent:'center',padding:14,background:'#fff',borderRadius:10,marginTop:10}}><QRCodeSVG value={`${window.location.origin}${import.meta.env.BASE_URL}?table=${encodeURIComponent(newTableToken)}`} size={220} level="M" includeMargin /></div>
+<button type="button" className="btn" style={{width:'100%',justifyContent:'center',marginTop:9}} onClick={()=>{
+ const svg=document.querySelector('#new-table-qr svg') as SVGSVGElement|null;
+ if(!svg)return;
+ const serialized=new XMLSerializer().serializeToString(svg);
+ const blob=new Blob([serialized],{type:'image/svg+xml;charset=utf-8'});
+ const url=URL.createObjectURL(blob);
+ const link=document.createElement('a');link.href=url;link.download='rivantoq-table-qr.svg';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+}}>Download QR Code</button>
 <p style={{fontSize:11,margin:'6px 0 0',textAlign:'center',color:'#78716c'}}>Scan to identify this table, browse the menu, and order when the owner opens the table session.</p>
 </div>}
 <div style={{display:'grid',gap:8,marginTop:14}}>
