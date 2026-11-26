@@ -175,14 +175,14 @@ function App() {
         setQrTableError('This table QR code is invalid, inactive, or no longer available.')
         return
       }
-      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;session_active?:boolean;cafe_slug?:string;slug?:string}
+      const tableInfo = data as {restaurant_name:string;branch_name:string;table_name:string;session_active?:boolean;cafe_slug?:string;branch_id?:string;slug?:string}
       setQrTableInfo(tableInfo)
       setQrMenuLoading(true)
       setQrMenuError('')
       // The public RPC returns guest-safe menu fields only. Never query private cost/profit tables here.
       const menuSlug = (tableInfo.cafe_slug || tableInfo.slug || tableInfo.restaurant_name
         .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))
-      const { data: menuData, error: menuError } = await supabase.rpc('get_public_cafe_menu', { p_slug: menuSlug })
+      const { data: menuData, error: menuError } = await supabase.rpc('get_public_cafe_menu', { p_slug: menuSlug, p_branch_id: tableInfo.branch_id })
       if (!active) return
       setQrMenuLoading(false)
       if (menuError) {
