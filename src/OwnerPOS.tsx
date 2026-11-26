@@ -18,6 +18,40 @@ type CreatedBill = { order_id: string; order_number: number; subtotal_paise: num
 
 const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+async function createBillImage(options: { restaurant: string; orderNumber: number; lines: CartLine[]; subtotal: number; discount: number; total: number; paid: number; due: number }) {
+  const width = 900
+  const rowHeight = 62
+  const height = 720 + options.lines.length * rowHeight
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not create the bill image.')
+  ctx.fillStyle = '#f5f3ed'; ctx.fillRect(0, 0, width, height)
+  ctx.fillStyle = '#064e3b'; ctx.fillRect(0, 0, width, 190)
+  ctx.fillStyle = '#a7f3d0'; ctx.font = '700 25px Arial'; ctx.fillText('RIVANTOQ  ·  EVERY SERVICE. ONE SYSTEM.', 58, 58)
+  ctx.fillStyle = '#ffffff'; ctx.font = '700 46px Arial'; ctx.fillText(options.restaurant.slice(0, 30), 58, 119)
+  ctx.font = '24px Arial'; ctx.fillStyle = '#d1fae5'; ctx.fillText('RECEIPT  #' + options.orderNumber, 58, 160)
+  let y = 245
+  ctx.fillStyle = '#292524'; ctx.font = '700 22px Arial'; ctx.fillText('ITEM', 58, y); ctx.textAlign = 'right'; ctx.fillText('AMOUNT', 840, y); ctx.textAlign = 'left'
+  y += 22; ctx.strokeStyle = '#d6d3d1'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(58,y); ctx.lineTo(842,y); ctx.stroke()
+  y += 48
+  for (const line of options.lines) {
+    ctx.fillStyle = '#292524'; ctx.font = '600 22px Arial'; ctx.fillText(line.item.name.slice(0, 42), 58, y)
+    ctx.fillStyle = '#78716c'; ctx.font = '18px Arial'; ctx.fillText('Qty ' + line.quantity + '  ×  ' + money(line.item.price_paise), 58, y + 27)
+    ctx.textAlign = 'right'; ctx.fillStyle = '#292524'; ctx.font = '700 22px Arial'; ctx.fillText(money(line.item.price_paise * line.quantity), 840, y + 8); ctx.textAlign = 'left'
+    y += rowHeight
+  }
+  y += 8; ctx.strokeStyle = '#d6d3d1'; ctx.beginPath(); ctx.moveTo(58,y); ctx.lineTo(842,y); ctx.stroke(); y += 45
+  const totalRow = (label: string, value: string, bold = false) => { ctx.fillStyle = '#57534e'; ctx.font = (bold ? '700 27px Arial' : '21px Arial'); ctx.fillText(label, 58, y); ctx.textAlign = 'right'; ctx.fillStyle = bold ? '#047857' : '#292524'; ctx.fillText(value, 840, y); ctx.textAlign = 'left'; y += bold ? 48 : 38 }
+  totalRow('Subtotal', money(options.subtotal)); totalRow('Discount', '−' + money(options.discount)); totalRow('TOTAL', money(options.total), true)
+  totalRow('Paid', money(options.paid)); totalRow('Balance due', money(options.due), true)
+  y += 10; ctx.fillStyle = '#064e3b'; ctx.fillRect(0, y, width, height-y)
+  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.font = '700 25px Arial'; ctx.fillText(options.due === 0 ? 'PAID IN FULL' : 'THANK YOU FOR VISITING!', width/2, y+48)
+  ctx.font = '18px Arial'; ctx.fillStyle = '#d1fae5'; ctx.fillText('Please keep this receipt for your records.', width/2, y+82)
+  return await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not export the bill image.')), 'image/png'))
+}
+
 export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   const [cafeId, setCafeId] = useState('')
   const [branches, setBranches] = useState<Branch[]>([])
@@ -271,6 +305,20 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <button type="button" className="btn" disabled={paymentSaving} onClick={() => void recordPayment()} style={{ justifyContent: 'center' }}>{paymentSaving ? 'Recording…' : 'Record payment'}</button>
       </div>}
       {duePaise === 0 && <p style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Paid in full</p>}
+      <button type="button" className="outline-btn" onClick={async () => {
+        try {
+          const blob = await createBillImage({restaurant:cafes.find(cafe=>cafe.id===cafeId)?.name||'Restaurant',orderNumber:bill.order_number,lines:bill.lines,subtotal:bill.subtotal_paise,discount:bill.discount_paise,total:bill.total_paise,paid:paidPaise,due:duePaise})
+          const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='Rivantoq-bill-'+bill.order_number+'.png';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url)
+        } catch(error) { setMessage(error instanceof Error ? error.message : 'Could not download the bill image.') }
+      }} style={{width:'100%',marginTop:10}}>Download bill image (PNG)</button>
+      <button type="button" className="btn" onClick={async () => {
+        try {
+          const blob=await createBillImage({restaurant:cafes.find(cafe=>cafe.id===cafeId)?.name||'Restaurant',orderNumber:bill.order_number,lines:bill.lines,subtotal:bill.subtotal_paise,discount:bill.discount_paise,total:bill.total_paise,paid:paidPaise,due:duePaise})
+          const file=new File([blob],'Rivantoq-bill-'+bill.order_number+'.png',{type:'image/png'})
+          if(navigator.share && navigator.canShare?.({files:[file]})) await navigator.share({files:[file],title:'Rivantoq bill #'+bill.order_number,text:'Thank you for visiting '+(cafes.find(cafe=>cafe.id===cafeId)?.name||'our restaurant')+'!'})
+          else {const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setMessage('Bill image downloaded. Attach the PNG in WhatsApp to send it to the customer.')}
+        } catch(error) { if(error instanceof Error && error.name!=='AbortError') setMessage(error.message||'Could not share the bill image.') }
+      }} style={{width:'100%',marginTop:8}}>Share bill image</button>
       {customerPhone.trim() && <button type="button" className="outline-btn" onClick={() => { const phone = customerPhone.replace(/[^0-9]/g, ''); const itemLines = bill.lines.map(line => line.item.name + ' x ' + line.quantity + ' - ' + money(line.item.price_paise * line.quantity)).join('\n'); const text = 'Rivantoq bill #' + bill.order_number + '\n' + itemLines + '\nTotal: ' + money(bill.total_paise) + '\nPaid: ' + money(paidPaise) + '\nBalance: ' + money(duePaise) + '\nThank you for visiting!'; window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer') }} style={{ width: '100%', marginTop: 10 }}>Send bill on WhatsApp</button>}
       <button type="button" className="outline-btn" onClick={() => window.print()} style={{ width: '100%', marginTop: 10 }}>Print / save digital bill</button>
       <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Bills and payment records are saved in Rivantoq. WhatsApp opens a prepared message for the owner to send; UPI payment is completed in the customer’s UPI app, not inside Rivantoq.</p>
