@@ -4,7 +4,7 @@ import { Bell, CheckCircle2, ChefHat, Clock3, RefreshCw, Search, ShoppingBag, Ut
 
 type Cafe = { id: string; name: string }
 type Branch = { id: string; name: string }
-type OrderItem = { id: string; item_name_snapshot: string; quantity: number; unit_price_paise: number; line_total_paise: number }
+type OrderItem = { id: string; item_name_snapshot: string; quantity: number; unit_price_paise: number; line_total_paise: number; customizations?:Array<{name:string;extra_price_paise:number}> }
 type Order = { id: string; order_number: number; order_type: string; status: string; notes: string | null; subtotal_paise: number; tax_paise: number; total_paise: number; created_at: string; table_id: string | null; order_items: OrderItem[] }
 const statuses = ['pending','accepted','preparing','ready','served','completed','cancelled']
 const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})
@@ -47,7 +47,7 @@ export default function OwnerOrders({cafes}:{cafes:Cafe[]}) {
  async function loadOrders(notifyNew=false){
   if(!supabase||!cafeId||!branchId)return
   setLoading(true);setMessage('')
-  const {data,error}=await supabase.from('orders').select('id,order_number,order_type,status,notes,subtotal_paise,tax_paise,total_paise,created_at,table_id,order_items(id,item_name_snapshot,quantity,unit_price_paise,line_total_paise)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(100)
+  const {data,error}=await supabase.from('orders').select('id,order_number,order_type,status,notes,subtotal_paise,tax_paise,total_paise,created_at,table_id,order_items(id,item_name_snapshot,quantity,unit_price_paise,line_total_paise,customizations)').eq('cafe_id',cafeId).eq('branch_id',branchId).order('created_at',{ascending:false}).limit(100)
   setLoading(false);if(error){setMessage(error.message);return}
   const rows=(data||[]) as unknown as Order[]
   if(initial.current&&notifyNew){const fresh=rows.filter(x=>!known.current.has(x.id));if(fresh.length){const notice='New order #'+fresh[0].order_number+' received';setLiveMessage(notice);if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('Rivantoq · New order',{body:notice})}}
@@ -98,7 +98,7 @@ export default function OwnerOrders({cafes}:{cafes:Cafe[]}) {
    <div className="orders-grid">{visible.map(order=><article className="order-card" key={order.id}>
     <div className="order-card-top"><div><span className="order-number">ORDER #{order.order_number}</span><div className="order-time">{new Date(order.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</div></div><span className={'status-pill tone-'+(tone[order.status]||'blue')}>{label(order.status)}</span></div>
     <div className="order-type-line"><span className="order-type-icon"><Utensils size={15}/></span>{order.order_type.replace('_',' ')}{order.table_id?' · Table order':''}</div>
-    <div className="order-items-list">{(order.order_items||[]).map(item=><div className="order-item-row" key={item.id}><span><b>{item.quantity}×</b> {item.item_name_snapshot}</span><strong>{money(item.line_total_paise)}</strong></div>)}</div>
+    <div className="order-items-list">{(order.order_items||[]).map(item=><div className="order-item-row" key={item.id}><span><b>{item.quantity}×</b> {item.item_name_snapshot}{item.customizations?.length ? <small style={{display:'block',color:'#78716c',marginLeft:20}}>{item.customizations.map(option=>option.name).join(', ')}</small> : null}</span><strong>{money(item.line_total_paise)}</strong></div>)}</div>
     {order.notes&&<div className="order-note"><b>Kitchen note</b><span>{order.notes}</span></div>}
     <div className="order-total-row"><span>Order total</span><b>{money(order.total_paise)}</b></div>
     <div className="order-card-footer"><label>Update order status<select value={order.status} onChange={e=>void updateStatus(order,e.target.value)} disabled={busyId===order.id}>{statuses.map(s=><option key={s} value={s}>{label(s)}</option>)}</select></label>{busyId===order.id&&<span className="saving-label">Saving…</span>}</div>
