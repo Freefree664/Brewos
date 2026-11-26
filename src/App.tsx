@@ -131,7 +131,7 @@ function App() {
   }, [authUser?.id])
   useEffect(() => {
   useEffect(() => {
-    if (!supabase || !authUser?.id) { setOwnerWaiterCalls([]); seenOwnerCallIds.current = new Set(); return }
+    if (!supabase || !authUser?.id || linkedStaff) { setOwnerWaiterCalls([]); seenOwnerCallIds.current = new Set(); return }
     let active = true
     const refreshOwnerWaiterCalls = async () => {
       const { data, error } = await supabase.rpc('get_staff_waiter_calls')
@@ -146,7 +146,7 @@ function App() {
     void refreshOwnerWaiterCalls()
     const timer = window.setInterval(() => void refreshOwnerWaiterCalls(), 10000)
     return () => { active = false; window.clearInterval(timer) }
-  }, [authUser?.id])
+  }, [authUser?.id, linkedStaff?.id])
   async function markOwnerWaiterCallHandled(callId:string) {
     if (!supabase) return
     const { error } = await supabase.rpc('update_waiter_call_status', {p_call_id:callId,p_status:'served'})
