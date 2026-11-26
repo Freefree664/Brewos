@@ -10,7 +10,7 @@ create table if not exists public.menu_item_option_groups (
   sort_order integer not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now(),
-  constraint option_group_selection_bounds check (min_select <= max_select),
+  constraint option_group_selection_bounds check (min_select <= max_select),\n  constraint required_group_has_minimum check (not required or min_select >= 1),
   unique (id, cafe_id)
 );
 create table if not exists public.menu_item_options (
@@ -37,7 +37,7 @@ for all to authenticated
 using (public.has_cafe_role(cafe_id,array['owner','manager']::public.cafe_role[]))
 with check (
   public.has_cafe_role(cafe_id,array['owner','manager']::public.cafe_role[])
-  and exists(select 1 from public.menu_items mi where mi.id=menu_item_id and mi.cafe_id=cafe_id)
+  and exists(select 1 from public.menu_items mi where mi.id=menu_item_id and mi.cafe_id=menu_item_option_groups.cafe_id)
 );
 drop policy if exists "Cafe members manage menu options" on public.menu_item_options;
 create policy "Cafe members manage menu options" on public.menu_item_options
@@ -45,7 +45,7 @@ for all to authenticated
 using (public.has_cafe_role(cafe_id,array['owner','manager']::public.cafe_role[]))
 with check (
   public.has_cafe_role(cafe_id,array['owner','manager']::public.cafe_role[])
-  and exists(select 1 from public.menu_item_option_groups g where g.id=group_id and g.cafe_id=cafe_id)
+  and exists(select 1 from public.menu_item_option_groups g where g.id=group_id and g.cafe_id=menu_item_options.cafe_id)
 );
 
 create table if not exists public.order_feedback (
@@ -221,7 +221,25 @@ set search_path to ''
 as $function$
 declare v_order public.orders%rowtype; v_table public.dining_tables%rowtype; v_id uuid;
 begin
- if coalesce(p_token,'') !~ '^[0-9a-fA-F]{64}$' or p_rating not between 1 and 5 then
+ if coalesce(p_token,'') !~ '^[0-9a-fA-F]{64}
+  return jsonb_build_object('error','Please provide a valid rating.');
+ end if;
+ select * into v_order from public.orders o where o.id=p_order_id and o.table_id is not null;
+ if not found then return jsonb_build_object('error','Order not found.'); end if;
+ select * into v_table from public.dining_tables t where t.id=v_order.table_id
+  and t.qr_token_hash=encode(extensions.digest(p_token,'sha256'),'hex') and t.active=true;
+ if not found then return jsonb_build_object('error','This order cannot be verified for this table.'); end if;
+ if v_order.status<>'completed' then return jsonb_build_object('error','Feedback is available after the order is completed.'); end if;
+ insert into public.order_feedback(cafe_id,order_id,rating,comment)
+ values(v_order.cafe_id,v_order.id,p_rating,nullif(left(trim(coalesce(p_comment,'')),1000),''))
+ on conflict(order_id) do nothing returning id into v_id;
+ if v_id is null then return jsonb_build_object('error','Feedback has already been submitted for this order.'); end if;
+ return jsonb_build_object('success',true,'feedback_id',v_id);
+end;
+$function$;
+revoke all on function public.submit_order_feedback(text,uuid,integer,text) from public;
+grant execute on function public.submit_order_feedback(text,uuid,integer,text) to anon,authenticated;
+ or p_rating is null or p_rating not between 1 and 5 then
   return jsonb_build_object('error','Please provide a valid rating.');
  end if;
  select * into v_order from public.orders o where o.id=p_order_id and o.table_id is not null;
