@@ -21,7 +21,7 @@ const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', {
 async function createBillImage(options: { restaurant: string; orderNumber: number; lines: CartLine[]; subtotal: number; discount: number; total: number; paid: number; due: number }) {
   const width = 900
   const rowHeight = 62
-  const height = 470 + options.lines.length * rowHeight
+  const height = 720 + options.lines.length * rowHeight
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
