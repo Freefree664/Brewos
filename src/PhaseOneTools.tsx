@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { supabase } from './lib/supabase'
 
 type Item={id:string;name:string}
@@ -6,7 +6,7 @@ type Group={id:string;menu_item_id:string;name:string;required:boolean;min_selec
 type Option={id:string;group_id:string;name:string;extra_price_paise:number;active:boolean}
 type Feedback={id:string;order_id:string;rating:number;comment:string|null;created_at:string}
 
-const field:React.CSSProperties={padding:9,border:'1px solid #d6d3d1',borderRadius:8,width:'100%',boxSizing:'border-box'}
+const field:CSSProperties={padding:9,border:'1px solid #d6d3d1',borderRadius:8,width:'100%',boxSizing:'border-box'}
 const money=(p:number)=>(p/100).toLocaleString('en-IN',{style:'currency',currency:'INR'})
 
 export function MenuCustomizationManager({cafeId,items}:{cafeId:string;items:Item[]}){
