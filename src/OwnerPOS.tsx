@@ -323,7 +323,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
       }} style={{width:'100%',marginTop:10}}>Download bill image (PNG)</button>
       <button type="button" className="btn" onClick={async () => {
         try {
-          const blob=await createBillImage({restaurant:cafes.find(cafe=>cafe.id===cafeId)?.name||'Restaurant',orderNumber:bill.order_number,lines:bill.lines,subtotal:bill.subtotal_paise,discount:bill.discount_paise,total:bill.total_paise,paid:paidPaise,due:duePaise})
+          const blob=await createBillImage({restaurant:cafes.find(cafe=>cafe.id===cafeId)?.name||'Restaurant',orderNumber:bill.order_number,lines:bill.lines,subtotal:bill.subtotal_paise,discount:bill.discount_paise,tax:bill.tax_paise,gstPercent:bill.gst_percent,total:bill.total_paise,paid:paidPaise,due:duePaise})
           const file=new File([blob],'Rivantoq-bill-'+bill.order_number+'.png',{type:'image/png'})
           if(navigator.share && navigator.canShare?.({files:[file]})) await navigator.share({files:[file],title:'Rivantoq bill #'+bill.order_number,text:'Thank you for visiting '+(cafes.find(cafe=>cafe.id===cafeId)?.name||'our restaurant')+'!'})
           else {const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setMessage('Bill image downloaded. Attach the PNG in WhatsApp to send it to the customer.')}
