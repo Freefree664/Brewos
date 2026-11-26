@@ -3,14 +3,20 @@ import { supabase } from './lib/supabase'
 import { QRCodeSVG } from 'qrcode.react'
 import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed, CheckCircle2, Clock3, PhoneCall, ArrowLeft } from 'lucide-react'
 
-type MenuOption={id:string;name:string;extra_price_paise:number}\ntype MenuOptionGroup={id:string;name:string;required:boolean;min_select:number;max_select:number;options:MenuOption[]}\ntype MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean;option_groups?:MenuOptionGroup[]}
+type MenuOption={id:string;name:string;extra_price_paise:number}
+type MenuOptionGroup={id:string;name:string;required:boolean;min_select:number;max_select:number;options:MenuOption[]}
+type MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean;option_groups?:MenuOptionGroup[]}
 type Props={token:string;items:MenuItem[];sessionActive:boolean}
 const rupees=(paise:number)=>'₹'+(paise/100).toLocaleString('en-IN',{maximumFractionDigits:2})
 const progress=[{key:'pending',label:'Order placed',hint:'Your order has reached the café.'},{key:'accepted',label:'Confirmed',hint:'The café has confirmed your order.'},{key:'preparing',label:'Preparing',hint:'The kitchen is preparing your food.'},{key:'ready',label:'Ready',hint:'Your order is ready to be served.'},{key:'served',label:'Served',hint:'Your order has been served.'},{key:'completed',label:'Completed',hint:'Thank you for visiting us!'}]
 
 export function CustomerOrdering({token,items,sessionActive}:Props){
  const [sessionPin,setSessionPin]=useState('')
- const [cart,setCart]=useState<Record<string,number>>({}),[notes,setNotes]=useState('')\n const [selectedOptions,setSelectedOptions]=useState<Record<string,string[]>>({})\n const [customizingItem,setCustomizingItem]=useState<MenuItem|null>(null)\n const [draftOptions,setDraftOptions]=useState<string[]>([])\n const [feedbackRating,setFeedbackRating]=useState(5),[feedbackComment,setFeedbackComment]=useState(''),[feedbackSent,setFeedbackSent]=useState(false),[feedbackBusy,setFeedbackBusy]=useState(false)
+ const [cart,setCart]=useState<Record<string,number>>({}),[notes,setNotes]=useState('')
+ const [selectedOptions,setSelectedOptions]=useState<Record<string,string[]>>({})
+ const [customizingItem,setCustomizingItem]=useState<MenuItem|null>(null)
+ const [draftOptions,setDraftOptions]=useState<string[]>([])
+ const [feedbackRating,setFeedbackRating]=useState(5),[feedbackComment,setFeedbackComment]=useState(''),[feedbackSent,setFeedbackSent]=useState(false),[feedbackBusy,setFeedbackBusy]=useState(false)
  const [customerName,setCustomerName]=useState(''),[customerPhone,setCustomerPhone]=useState('')
  const [loyaltySummary,setLoyaltySummary]=useState<{earned:number;balance:number}|null>(null)
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[orderId,setOrderId]=useState(''),[orderNumber,setOrderNumber]=useState<number|null>(null),[orderStatus,setOrderStatus]=useState('pending')
@@ -21,9 +27,11 @@ export function CustomerOrdering({token,items,sessionActive}:Props){
  const cartItems=useMemo(()=>items.filter(x=>(cart[x.id]||0)>0),[items,cart])
  const categories=useMemo(()=>['All',...Array.from(new Set(items.map(x=>x.category)))],[items])
  const visible=useMemo(()=>items.filter(x=>(category==='All'||x.category===category)&&(x.name+' '+(x.description||'')).toLowerCase().includes(search.toLowerCase().trim())),[items,category,search])
- const unitPrice=(item:MenuItem)=>item.price+(item.option_groups||[]).flatMap(g=>g.options).filter(o=>(selectedOptions[item.id]||[]).includes(o.id)).reduce((s,o)=>s+o.extra_price_paise,0)\n const total=cartItems.reduce((sum,x)=>sum+unitPrice(x)*cart[x.id],0)
+ const unitPrice=(item:MenuItem)=>item.price+(item.option_groups||[]).flatMap(g=>g.options).filter(o=>(selectedOptions[item.id]||[]).includes(o.id)).reduce((s,o)=>s+o.extra_price_paise,0)
+ const total=cartItems.reduce((sum,x)=>sum+unitPrice(x)*cart[x.id],0)
  const count=cartItems.reduce((sum,x)=>sum+cart[x.id],0)
- function change(id:string,delta:number){const qty=(cart[id]||0)+delta;if(qty<=0){setCart(old=>{const next={...old};delete next[id];return next});setSelectedOptions(old=>{const next={...old};delete next[id];return next});return;}setCart(old=>({...old,[id]:Math.min(20,qty)}))}\n function saveCustomization(){if(!customizingItem)return;const groups=customizingItem.option_groups||[];for(const group of groups){const count=draftOptions.filter(id=>group.options.some(option=>option.id===id)).length;if(count<group.min_select||count>group.max_select){setMessage('Please choose '+group.min_select+' to '+group.max_select+' options for '+group.name+'.');return;}}setSelectedOptions(old=>({...old,[customizingItem.id]:draftOptions}));change(customizingItem.id,1);setCustomizingItem(null);setMessage('Customization added to your order.');}
+ function change(id:string,delta:number){const qty=(cart[id]||0)+delta;if(qty<=0){setCart(old=>{const next={...old};delete next[id];return next});setSelectedOptions(old=>{const next={...old};delete next[id];return next});return;}setCart(old=>({...old,[id]:Math.min(20,qty)}))}
+ function saveCustomization(){if(!customizingItem)return;const groups=customizingItem.option_groups||[];for(const group of groups){const count=draftOptions.filter(id=>group.options.some(option=>option.id===id)).length;if(count<group.min_select||count>group.max_select){setMessage('Please choose '+group.min_select+' to '+group.max_select+' options for '+group.name+'.');return;}}setSelectedOptions(old=>({...old,[customizingItem.id]:draftOptions}));change(customizingItem.id,1);setCustomizingItem(null);setMessage('Customization added to your order.');}
  useEffect(()=>{
   const client=supabase
   if(!orderId||!client)return
