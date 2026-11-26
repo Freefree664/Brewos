@@ -10,7 +10,8 @@ create table if not exists public.menu_item_option_groups (
   sort_order integer not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now(),
-  constraint option_group_selection_bounds check (min_select <= max_select),\n  constraint required_group_has_minimum check (not required or min_select >= 1),
+  constraint option_group_selection_bounds check (min_select <= max_select), 
+  constraint required_group_has_minimum check (not required or min_select >= 1),
   unique (id, cafe_id)
 );
 create table if not exists public.menu_item_options (
