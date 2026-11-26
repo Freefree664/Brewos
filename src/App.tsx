@@ -96,7 +96,7 @@ function App() {
   const [qrTableInfo,setQrTableInfo] = useState<{restaurant_name:string;branch_name:string;table_name:string;session_active?:boolean} | null>(null)
   const [qrTableLoading,setQrTableLoading] = useState(false)
   const [qrTableError,setQrTableError] = useState('')
-  const [qrMenuItems,setQrMenuItems] = useState<Array<{id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}>>([])
+  const [qrMenuItems,setQrMenuItems] = useState<Array<{id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean;option_groups?:Array<{id:string;name:string;required:boolean;min_select:number;max_select:number;options:Array<{id:string;name:string;extra_price_paise:number}>}>}>>([])
   const [qrMenuLoading,setQrMenuLoading] = useState(false)
   const [qrMenuError,setQrMenuError] = useState('')
   const guestUrlParams = new URLSearchParams(window.location.search)
@@ -220,7 +220,7 @@ function App() {
             category: String(row.category_name ?? row.category ?? 'Menu'),
             price: Number.isFinite(priceInPaise) ? priceInPaise : 0,
             image: row.image_url == null ? (row.image == null ? null : String(row.image)) : String(row.image_url),
-            available: row.is_available !== false && row.available !== false
+            available: row.is_available !== false && row.available !== false,\n            option_groups: Array.isArray(row.option_groups) ? row.option_groups as Array<{id:string;name:string;required:boolean;min_select:number;max_select:number;options:Array<{id:string;name:string;extra_price_paise:number}>}> : []
           }
         }).filter(item => item.available)
       setQrMenuItems(normalized)
