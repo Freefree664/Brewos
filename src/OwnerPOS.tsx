@@ -14,9 +14,43 @@ type MenuItem = {
   branch_id: string | null
 }
 type CartLine = { item: MenuItem; quantity: number }
-type CreatedBill = { order_id: string; order_number: number; subtotal_paise: number; discount_paise: number; total_paise: number; lines: CartLine[] }
+type CreatedBill = { order_id: string; order_number: number; subtotal_paise: number; discount_paise: number; tax_paise: number; total_paise: number; gst_percent: number; lines: CartLine[] }
 
 const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+async function createBillImage(options: { restaurant: string; orderNumber: number; lines: CartLine[]; subtotal: number; discount: number; tax: number; gstPercent: number; total: number; paid: number; due: number }) {
+  const width = 900
+  const rowHeight = 62
+  const height = 760 + options.lines.length * rowHeight
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not create the bill image.')
+  ctx.fillStyle = '#f5f3ed'; ctx.fillRect(0, 0, width, height)
+  ctx.fillStyle = '#064e3b'; ctx.fillRect(0, 0, width, 190)
+  ctx.fillStyle = '#a7f3d0'; ctx.font = '700 25px Arial'; ctx.fillText('RIVANTOQ  ·  EVERY SERVICE. ONE SYSTEM.', 58, 58)
+  ctx.fillStyle = '#ffffff'; ctx.font = '700 46px Arial'; ctx.fillText(options.restaurant.slice(0, 30), 58, 119)
+  ctx.font = '24px Arial'; ctx.fillStyle = '#d1fae5'; ctx.fillText('RECEIPT  #' + options.orderNumber, 58, 160)
+  let y = 245
+  ctx.fillStyle = '#292524'; ctx.font = '700 22px Arial'; ctx.fillText('ITEM', 58, y); ctx.textAlign = 'right'; ctx.fillText('AMOUNT', 840, y); ctx.textAlign = 'left'
+  y += 22; ctx.strokeStyle = '#d6d3d1'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(58,y); ctx.lineTo(842,y); ctx.stroke()
+  y += 48
+  for (const line of options.lines) {
+    ctx.fillStyle = '#292524'; ctx.font = '600 22px Arial'; ctx.fillText(line.item.name.slice(0, 42), 58, y)
+    ctx.fillStyle = '#78716c'; ctx.font = '18px Arial'; ctx.fillText('Qty ' + line.quantity + '  ×  ' + money(line.item.price_paise), 58, y + 27)
+    ctx.textAlign = 'right'; ctx.fillStyle = '#292524'; ctx.font = '700 22px Arial'; ctx.fillText(money(line.item.price_paise * line.quantity), 840, y + 8); ctx.textAlign = 'left'
+    y += rowHeight
+  }
+  y += 8; ctx.strokeStyle = '#d6d3d1'; ctx.beginPath(); ctx.moveTo(58,y); ctx.lineTo(842,y); ctx.stroke(); y += 45
+  const totalRow = (label: string, value: string, bold = false) => { ctx.fillStyle = '#57534e'; ctx.font = (bold ? '700 27px Arial' : '21px Arial'); ctx.fillText(label, 58, y); ctx.textAlign = 'right'; ctx.fillStyle = bold ? '#047857' : '#292524'; ctx.fillText(value, 840, y); ctx.textAlign = 'left'; y += bold ? 48 : 38 }
+  totalRow('Subtotal', money(options.subtotal)); totalRow('Discount', '−' + money(options.discount)); totalRow('GST (' + options.gstPercent + '%)', money(options.tax)); totalRow('TOTAL', money(options.total), true)
+  totalRow('Paid', money(options.paid)); totalRow('Balance due', money(options.due), true)
+  y += 10; ctx.fillStyle = '#064e3b'; ctx.fillRect(0, y, width, height-y)
+  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.font = '700 25px Arial'; ctx.fillText(options.due === 0 ? 'PAID IN FULL' : 'THANK YOU FOR VISITING!', width/2, y+48)
+  ctx.font = '18px Arial'; ctx.fillStyle = '#d1fae5'; ctx.fillText('Please keep this receipt for your records.', width/2, y+82)
+  return await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not export the bill image.')), 'image/png'))
+}
 
 export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   const [cafeId, setCafeId] = useState('')
@@ -31,6 +65,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   const [upiId, setUpiId] = useState('')
   const [notes, setNotes] = useState('')
   const [discount, setDiscount] = useState('0')
+  const [gstPercent, setGstPercent] = useState('0')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash')
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentReference, setPaymentReference] = useState('')
@@ -108,7 +143,10 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
   const subtotal = cart.reduce((sum, line) => sum + line.item.price_paise * line.quantity, 0)
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0)
   const discountPaise = Math.max(0, Math.round(Number(discount || 0) * 100))
-  const total = Math.max(0, subtotal - discountPaise)
+  const taxableAmount = Math.max(0, subtotal - Math.min(discountPaise, subtotal))
+  const gstRate = Math.min(100, Math.max(0, Number(gstPercent) || 0))
+  const gstPaise = Math.round(taxableAmount * gstRate / 100)
+  const total = taxableAmount + gstPaise
 
   function addItem(item: MenuItem) {
     setBill(null)
@@ -140,13 +178,14 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
       p_notes: notes.trim() || null,
       p_items: cart.map(line => ({ menu_item_id: line.item.id, quantity: line.quantity })),
       p_discount_paise: discountPaise,
-      p_customer_phone: customerPhone.trim() || null
+      p_customer_phone: customerPhone.trim() || null,
+      p_gst_percent: gstRate
     })
     setSaving(false)
     if (error) { setMessage(error.message); return }
     const created = Array.isArray(data) ? data[0] : data
     if (!created?.order_number) { setMessage('The bill was not confirmed. Refresh incoming orders before retrying.'); return }
-    setBill({ order_id: created.order_id, order_number: Number(created.order_number), subtotal_paise: Number(created.subtotal_paise), discount_paise: Number(created.discount_paise), total_paise: Number(created.total_paise), lines: cart.map(line => ({ item: line.item, quantity: line.quantity })) })
+    setBill({ order_id: created.order_id, order_number: Number(created.order_number), subtotal_paise: Number(created.subtotal_paise), discount_paise: Number(created.discount_paise), tax_paise: Number(created.tax_paise), gst_percent: gstRate, total_paise: Number(created.total_paise), lines: cart.map(line => ({ item: line.item, quantity: line.quantity })) })
     setPaidPaise(0)
     setDuePaise(Number(created.total_paise))
     setPaymentAmount((Number(created.total_paise) / 100).toFixed(2))
@@ -154,6 +193,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
     setCustomerName('')
     setNotes('')
     setDiscount('0')
+    setGstPercent('0')
   }
 
   async function recordPayment() {
@@ -243,6 +283,10 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
             <input type="number" min="0" max={(subtotal / 100).toFixed(2)} step="0.01" value={discount} onChange={e => setDiscount(e.target.value)} style={{ width: '100%', padding: 9, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
           </label>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>Discount</span><b>−{money(Math.min(discountPaise, subtotal))}</b></div>
+          <label style={{ display: 'grid', gap: 5, fontSize: 11 }}>GST (%)
+            <input type="number" min="0" max="100" step="0.01" value={gstPercent} onChange={e => setGstPercent(e.target.value)} style={{ width: '100%', padding: 9, border: '1px solid #d6d3d1', borderRadius: 8 }}/>
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>GST ({gstRate}%)</span><b>{money(gstPaise)}</b></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><b>Total</b><b>{money(total)}</b></div>
           <label style={{ display: 'grid', gap: 5, fontSize: 11 }}>Payment mode for this bill
             <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)} style={{ width: '100%', padding: 10, border: '1px solid #d6d3d1', borderRadius: 8, background: '#fff' }}><option value="cash">Cash</option><option value="upi">UPI · Scan QR</option><option value="card">Card</option></select>
@@ -259,7 +303,7 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
     {bill && <div className="pos-receipt" style={{ marginTop: 12, padding: 14, border: '1px solid #a7f3d0', borderRadius: 10, background: '#ecfdf5', color: '#065f46' }}>
       <b>Rivantoq · RECEIPT #{bill.order_number}</b>
       <div style={{ display: 'grid', gap: 5, margin: '12px 0', fontSize: 12 }}>{bill.lines.map(line => <div key={line.item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><span>{line.item.name} × {line.quantity}</span><b>{money(line.item.price_paise * line.quantity)}</b></div>)}</div>
-      <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · Total {money(bill.total_paise)}</p>
+      <p style={{ fontSize: 12, margin: '5px 0 12px' }}>Subtotal {money(bill.subtotal_paise)} · Discount {money(bill.discount_paise)} · GST ({bill.gst_percent}%) {money(bill.tax_paise)} · Total {money(bill.total_paise)}</p>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Recorded payments</span><b>{money(paidPaise)}</b></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span>Balance due</span><b>{money(duePaise)}</b></div>
       {paymentMethod === 'upi' && upiId && <div style={{ display: 'grid', justifyItems: 'center', gap: 8, padding: 12, marginTop: 12, border: '1px solid #a7f3d0', borderRadius: 12, background: '#fff' }}><b style={{ fontSize: 13 }}>Scan to pay {money(duePaise)}</b><QRCodeSVG value={'upi://pay?pa=' + encodeURIComponent(upiId) + '&pn=' + encodeURIComponent(cafes.find(cafe => cafe.id === cafeId)?.name || 'Restaurant') + '&am=' + (duePaise / 100).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent('Bill ' + bill.order_number)} size={190} level="M"/><span style={{ fontSize: 11, color: '#57534e' }}>UPI ID: {upiId}</span><span style={{ fontSize: 10, color: '#b45309', textAlign: 'center' }}>Only record the payment after checking the successful transaction in the restaurant’s UPI app.</span></div>}
@@ -271,7 +315,21 @@ export default function OwnerPOS({ cafes }: { cafes: Cafe[] }) {
         <button type="button" className="btn" disabled={paymentSaving} onClick={() => void recordPayment()} style={{ justifyContent: 'center' }}>{paymentSaving ? 'Recording…' : 'Record payment'}</button>
       </div>}
       {duePaise === 0 && <p style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Paid in full</p>}
-      {customerPhone.trim() && <button type="button" className="outline-btn" onClick={() => { const phone = customerPhone.replace(/[^0-9]/g, ''); const itemLines = bill.lines.map(line => line.item.name + ' x ' + line.quantity + ' - ' + money(line.item.price_paise * line.quantity)).join('\n'); const text = 'Rivantoq bill #' + bill.order_number + '\n' + itemLines + '\nTotal: ' + money(bill.total_paise) + '\nPaid: ' + money(paidPaise) + '\nBalance: ' + money(duePaise) + '\nThank you for visiting!'; window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer') }} style={{ width: '100%', marginTop: 10 }}>Send bill on WhatsApp</button>}
+      <button type="button" className="outline-btn" onClick={async () => {
+        try {
+          const blob = await createBillImage({restaurant:cafes.find(cafe=>cafe.id===cafeId)?.name||'Restaurant',orderNumber:bill.order_number,lines:bill.lines,subtotal:bill.subtotal_paise,discount:bill.discount_paise,tax:bill.tax_paise,gstPercent:bill.gst_percent,total:bill.total_paise,paid:paidPaise,due:duePaise})
+          const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='Rivantoq-bill-'+bill.order_number+'.png';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url)
+        } catch(error) { setMessage(error instanceof Error ? error.message : 'Could not download the bill image.') }
+      }} style={{width:'100%',marginTop:10}}>Download bill image (PNG)</button>
+      <button type="button" className="btn" onClick={async () => {
+        try {
+          const blob=await createBillImage({restaurant:cafes.find(cafe=>cafe.id===cafeId)?.name||'Restaurant',orderNumber:bill.order_number,lines:bill.lines,subtotal:bill.subtotal_paise,discount:bill.discount_paise,tax:bill.tax_paise,gstPercent:bill.gst_percent,total:bill.total_paise,paid:paidPaise,due:duePaise})
+          const file=new File([blob],'Rivantoq-bill-'+bill.order_number+'.png',{type:'image/png'})
+          if(navigator.share && navigator.canShare?.({files:[file]})) await navigator.share({files:[file],title:'Rivantoq bill #'+bill.order_number,text:'Thank you for visiting '+(cafes.find(cafe=>cafe.id===cafeId)?.name||'our restaurant')+'!'})
+          else {const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setMessage('Bill image downloaded. Attach the PNG in WhatsApp to send it to the customer.')}
+        } catch(error) { if(error instanceof Error && error.name!=='AbortError') setMessage(error.message||'Could not share the bill image.') }
+      }} style={{width:'100%',marginTop:8}}>Share bill image</button>
+      {customerPhone.trim() && <button type="button" className="outline-btn" onClick={() => { const phone = customerPhone.replace(/[^0-9]/g, ''); const itemLines = bill.lines.map(line => line.item.name + ' x ' + line.quantity + ' - ' + money(line.item.price_paise * line.quantity)).join('\n'); const text = 'Rivantoq bill #' + bill.order_number + '\n' + itemLines + '\nGST (' + bill.gst_percent + '%): ' + money(bill.tax_paise) + '\nTotal: ' + money(bill.total_paise) + '\nPaid: ' + money(paidPaise) + '\nBalance: ' + money(duePaise) + '\nThank you for visiting!'; window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer') }} style={{ width: '100%', marginTop: 10 }}>Send bill on WhatsApp</button>}
       <button type="button" className="outline-btn" onClick={() => window.print()} style={{ width: '100%', marginTop: 10 }}>Print / save digital bill</button>
       <p style={{ fontSize: 10, marginBottom: 0, color: '#57534e' }}>Bills and payment records are saved in Rivantoq. WhatsApp opens a prepared message for the owner to send; UPI payment is completed in the customer’s UPI app, not inside Rivantoq.</p>
     </div>}

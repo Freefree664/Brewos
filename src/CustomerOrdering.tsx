@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { QRCodeSVG } from 'qrcode.react'
-import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed, CheckCircle2, Clock3 } from 'lucide-react'
+import { Minus, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed, CheckCircle2, Clock3, PhoneCall, ArrowLeft } from 'lucide-react'
 
 type MenuItem={id:string;name:string;description:string|null;category:string;price:number;image:string|null;available:boolean}
 type Props={token:string;items:MenuItem[];sessionActive:boolean}
@@ -16,6 +16,7 @@ export function CustomerOrdering({token,items,sessionActive}:Props){
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[orderId,setOrderId]=useState(''),[orderNumber,setOrderNumber]=useState<number|null>(null),[orderStatus,setOrderStatus]=useState('pending')
  const [orderBill,setOrderBill]=useState<{subtotal_paise:number;discount_paise:number;tax_paise:number;total_paise:number;restaurant_name:string;upi_id:string|null;items:Array<{name:string;quantity:number;unit_price_paise:number;line_total_paise:number}>}|null>(null)
  const [paymentMode,setPaymentMode]=useState<'upi'|'cash'>('upi')
+ const [callPanelOpen,setCallPanelOpen]=useState(false),[callBusy,setCallBusy]=useState(false),[callMessage,setCallMessage]=useState(''),[callSent,setCallSent]=useState(false)
  const [category,setCategory]=useState('All'),[search,setSearch]=useState('')
  const cartItems=useMemo(()=>items.filter(x=>(cart[x.id]||0)>0),[items,cart])
  const categories=useMemo(()=>['All',...Array.from(new Set(items.map(x=>x.category)))],[items])
@@ -69,8 +70,36 @@ export function CustomerOrdering({token,items,sessionActive}:Props){
    <p className="guest-tracking-footnote">Keep this page open to see the latest updates. It refreshes automatically.</p>
   </section>
  }
+ if(callPanelOpen&&!orderId){
+  return <section style={{maxWidth:620,margin:'0 auto',padding:'24px 16px',color:'#292524'}}>
+   <button type="button" className="outline-btn" style={{width:'auto',marginBottom:20}} onClick={()=>{setCallPanelOpen(false);setCallMessage('')}}><ArrowLeft size={15}/> Back to menu</button>
+   <div style={{background:'#fff',border:'1px solid #e7e5e4',borderRadius:18,padding:22,textAlign:'center'}}>
+    <div style={{width:58,height:58,borderRadius:18,background:'#ecfdf5',color:'#047857',display:'grid',placeItems:'center',margin:'0 auto 14px'}}><PhoneCall size={27}/></div>
+    <span className="guest-eyebrow">RIVANTOQ GUEST SERVICE</span>
+    <h2 style={{margin:'8px 0',fontSize:24}}>Call a waiter</h2>
+    <p style={{fontSize:13,color:'#78716c',lineHeight:1.6}}>Need help, a menu question, or assistance at your table? Send a request and a waiter will be notified.</p>
+    {!sessionActive?<p role="status" style={{padding:12,borderRadius:10,background:'#fffbeb',color:'#92400e',fontSize:12}}>This table is not active yet. Please ask café staff to open your table.</p>:<>
+     <button type="button" className="guest-place-order" disabled={callBusy||callSent||!supabase||!sessionActive} onClick={async()=>{
+      if(!supabase)return;
+      setCallBusy(true);setCallMessage('');
+      try{
+       const {data,error}=await supabase.rpc('call_waiter_for_table',{p_token:token});
+       if(error){setCallMessage(error.message||'Could not send your request. Please ask café staff.');return;}
+       const result=data as {request_id?:string;status?:string;error?:string;already_requested?:boolean}|null;
+       if(result?.error){setCallMessage(result.error);return;}
+       if(!result?.request_id){setCallMessage('The café did not confirm your request. Please try again or ask staff.');return;}
+       setCallSent(true);setCallMessage(result.already_requested?'A waiter has already been called for this table.':'Your request has been sent. A waiter has been notified.');
+      }catch{setCallMessage('Connection problem. Please check your internet and try again.');}
+      finally{setCallBusy(false);}
+     }}>{callBusy?'Sending request…':callSent?'Waiter requested':'Call waiter now'}</button>
+    </>}
+    {callMessage&&<p role="status" style={{marginTop:12,padding:11,borderRadius:9,background:callSent?'#ecfdf5':'#f5f5f4',color:callSent?'#065f46':'#57534e',fontSize:12}}>{callMessage}</p>}
+    {callSent&&<p style={{fontSize:11,color:'#78716c'}}>Please keep this page open. The waiter will come to your table.</p>}
+   </div>
+  </section>
+ }
  return <section className="guest-ordering">
-  <div className="guest-menu-heading"><div><span className="guest-eyebrow"><Sparkles size={13}/> FRESH FROM OUR KITCHEN</span><h2>Explore the menu</h2><p>Find your favourites and build your order.</p></div><div className="guest-cart-count"><ShoppingBag size={16}/><b>{count}</b><span>in cart</span></div></div>
+  <div className="guest-menu-heading"><div><span className="guest-eyebrow"><Sparkles size={13}/> FRESH FROM OUR KITCHEN</span><h2>Explore the menu</h2><p>Find your favourites and build your order.</p><button type="button" className="outline-btn" style={{width:'auto',marginTop:10}} onClick={()=>{setCallPanelOpen(true);setCallMessage('');setCallSent(false)}}><PhoneCall size={15}/> Call waiter</button></div><div className="guest-cart-count"><ShoppingBag size={16}/><b>{count}</b><span>in cart</span></div></div>
   {!sessionActive&&<div className="guest-session-closed" role="status"><Clock3 size={18}/><div><b>This table is not open yet</b><span>Your café team must activate this table before you can order.</span></div></div>}
   {sessionActive&&<div className="guest-session-code"><span>TABLE SESSION ACTIVE</span><b>Ready for ordering</b><small>Ask café staff for the six-digit code.</small></div>}
   <label className="guest-search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search dishes or ingredients…"/></label>
