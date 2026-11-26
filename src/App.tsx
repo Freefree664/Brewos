@@ -220,7 +220,8 @@ function App() {
             category: String(row.category_name ?? row.category ?? 'Menu'),
             price: Number.isFinite(priceInPaise) ? priceInPaise : 0,
             image: row.image_url == null ? (row.image == null ? null : String(row.image)) : String(row.image_url),
-            available: row.is_available !== false && row.available !== false,\n            option_groups: Array.isArray(row.option_groups) ? row.option_groups as Array<{id:string;name:string;required:boolean;min_select:number;max_select:number;options:Array<{id:string;name:string;extra_price_paise:number}>}> : []
+            available: row.is_available !== false && row.available !== false,
+            option_groups: Array.isArray(row.option_groups) ? row.option_groups as Array<{id:string;name:string;required:boolean;min_select:number;max_select:number;options:Array<{id:string;name:string;extra_price_paise:number}>}> : []
           }
         }).filter(item => item.available)
       setQrMenuItems(normalized)
